@@ -6387,7 +6387,465 @@
     }
 
     // =========================================================================
-    // SCREEN 3: LEARN (5 SUB-TABS: LESSONS, SOUNDS, ALPHABET, GRAMMAR, ALL WORDS)
+    // TRANSLATOR SUB-VIEW (HYBRID OFFLINE DECK + ONLINE MYMEMORY API)
+    // =========================================================================
+    function TranslatorSubView({ vocabulary, setVocabulary, isSr, isRadoica }) {
+      const [sourceLang, setSourceLang] = useState(() => isRadoica ? "sr" : "de");
+      const [inputText, setInputText] = useState("");
+      const [onlineResult, setOnlineResult] = useState(null);
+      const [isLoading, setIsLoading] = useState(false);
+      const [offlineNotice, setOfflineNotice] = useState(false);
+      const [copiedId, setCopiedId] = useState(null);
+      const [savedFeedback, setSavedFeedback] = useState(false);
+      const [history, setHistory] = useState(() => {
+        try {
+          const raw = localStorage.getItem("zajedno_translation_history");
+          return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+          return [];
+        }
+      });
+
+      const abortRef = useRef(null);
+      const inputRef = useRef(null);
+
+      useEffect(() => {
+        setSourceLang(isRadoica ? "sr" : "de");
+      }, [isRadoica]);
+
+      useEffect(() => {
+        try {
+          localStorage.setItem("zajedno_translation_history", JSON.stringify(history));
+        } catch (e) {}
+      }, [history]);
+
+      const targetLang = sourceLang === "sr" ? "de" : "sr";
+
+      const normalizeForSearch = (str) => {
+        if (!str) return "";
+        return str
+          .toLowerCase()
+          .replace(/đ/g, "d")
+          .replace(/dj/g, "d")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .trim();
+      };
+
+      const deckMatches = useMemo(() => {
+        const q = normalizeForSearch(inputText);
+        if (!q || q.length < 1) return { exact: [], close: [] };
+        const exact = [];
+        const close = [];
+        vocabulary.forEach(w => {
+          const field = sourceLang === "sr" ? w.sr : w.de;
+          const normField = normalizeForSearch(field);
+          if (!normField) return;
+          if (normField === q) {
+            exact.push(w);
+          } else if (q.length >= 2 && (normField.includes(q) || q.includes(normField))) {
+            close.push(w);
+          }
+        });
+        return { exact, close: close.slice(0, 5) };
+      }, [inputText, sourceLang, vocabulary]);
+
+      const addToHistory = (entry) => {
+        setHistory(prev => {
+          const filtered = prev.filter(
+            item => !(item.sourceText.toLowerCase() === entry.sourceText.toLowerCase() && item.sourceLang === entry.sourceLang)
+          );
+          return [entry, ...filtered].slice(0, 10);
+        });
+      };
+
+      const runOnlineTranslate = async (textToTranslate, src, tgt) => {
+        const trimmed = textToTranslate.trim();
+        if (!trimmed) {
+          setOnlineResult(null);
+          setOfflineNotice(false);
+          return;
+        }
+        if (!navigator.onLine) {
+          setOfflineNotice(true);
+          setOnlineResult(null);
+          setIsLoading(false);
+          return;
+        }
+        if (abortRef.current) {
+          abortRef.current.abort();
+        }
+        const controller = new AbortController();
+        abortRef.current = controller;
+        setIsLoading(true);
+        setOfflineNotice(false);
+        setSavedFeedback(false);
+        try {
+          const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(trimmed)}&langpair=${src}|${tgt}`;
+          const res = await fetch(url, { signal: controller.signal });
+          if (!res.ok) throw new Error("Network response error");
+          const data = await res.json();
+          const translated = data && data.responseData && data.responseData.translatedText;
+          if (translated) {
+            const resultObj = {
+              sourceText: trimmed,
+              translatedText: translated,
+              sourceLang: src,
+              targetLang: tgt,
+              timestamp: new Date().toISOString()
+            };
+            setOnlineResult(resultObj);
+            addToHistory(resultObj);
+          } else {
+            setOfflineNotice(true);
+          }
+        } catch (err) {
+          if (err.name !== "AbortError") {
+            setOfflineNotice(true);
+          }
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      useEffect(() => {
+        const trimmed = inputText.trim();
+        if (!trimmed) {
+          setOnlineResult(null);
+          setOfflineNotice(false);
+          setIsLoading(false);
+          return;
+        }
+        if (deckMatches.exact.length > 0) {
+          setOnlineResult(null);
+          setOfflineNotice(false);
+          setIsLoading(false);
+          return;
+        }
+        const timer = setTimeout(() => {
+          runOnlineTranslate(trimmed, sourceLang, targetLang);
+        }, 600);
+        return () => clearTimeout(timer);
+      }, [inputText, sourceLang, deckMatches.exact.length]);
+
+      const handleSwap = () => {
+        const nextSrc = targetLang;
+        setSourceLang(nextSrc);
+        if (onlineResult && onlineResult.translatedText) {
+          setInputText(onlineResult.translatedText);
+        }
+        setOnlineResult(null);
+        setOfflineNotice(false);
+        setSavedFeedback(false);
+      };
+
+      const handleInsertChar = (ch) => {
+        setInputText(prev => prev + ch);
+        if (inputRef.current) inputRef.current.focus();
+      };
+
+      const handleCopy = (text, id) => {
+        navigator.clipboard.writeText(text);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 1800);
+      };
+
+      const handleSaveCard = (srText, deText) => {
+        const exists = vocabulary.some(
+          w => normalizeForSearch(w.sr) === normalizeForSearch(srText) && normalizeForSearch(w.de) === normalizeForSearch(deText)
+        );
+        if (exists) {
+          setSavedFeedback(true);
+          return;
+        }
+        const newCard = {
+          id: "custom-" + Date.now(),
+          sr: srText,
+          srCyr: "",
+          de: deText,
+          en: "",
+          cat: "Everyday",
+          srPron: "",
+          dePron: "",
+          swissChip: isSr ? "Sačuvano iz prevodioca" : "Aus dem Übersetzer",
+          exSr: srText,
+          exDe: deText,
+          notes: isSr ? "Dodato iz prevodioca" : "Vom Übersetzer gespeichert",
+          createdBy: isRadoica ? "Radoica" : "Malak",
+          starred: false,
+          fsrsState: 0,
+          fsrsStability: 1.0,
+          fsrsDifficulty: 5.0,
+          fsrsReps: 0,
+          fsrsLapses: 0,
+          fsrsDue: new Date().toISOString(),
+          learnedRadoica: false,
+          learnedMalak: false
+        };
+        setVocabulary(prev => [newCard, ...prev]);
+        setSavedFeedback(true);
+        if (window.confetti) window.confetti({ particleCount: 35, spread: 55, origin: { y: 0.7 } });
+      };
+
+      const keycaps = sourceLang === "sr" ? ["č", "ć", "ž", "š", "đ"] : ["ä", "ö", "ü", "ß"];
+      const allDeckResults = [...deckMatches.exact, ...deckMatches.close];
+
+      return (
+        <div className="space-y-4">
+          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-rose-100 shadow-xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="font-bold text-stone-900 text-sm">
+                  {isSr ? "🌐 Pametni Prevodilac (Srpski ↔ Nemački)" : "🌐 Smarter Übersetzer (Serbisch ↔ Deutsch)"}
+                </h3>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  {isSr
+                    ? "Prvo pretražuje naših 165+ kartica offline, a za cele rečenice koristi online prevod."
+                    : "Durchsucht zuerst unsere 165+ Karten offline und übersetzt ganze Sätze online."}
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-1.5 bg-rose-50/80 px-2.5 py-1.5 rounded-2xl border border-rose-100 text-xs font-bold">
+                <span className="text-stone-800">
+                  {sourceLang === "sr" ? (isSr ? "🇷🇸 Srpski" : "🇷🇸 Serbisch") : (isSr ? "🇩🇪 Nemački" : "🇩🇪 Deutsch")}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSwap}
+                  className="px-2 py-0.5 bg-white hover:bg-rose-100 text-rose-900 rounded-lg border border-rose-200 shadow-2xs transition active:scale-95"
+                  title={isSr ? "Zameni smer prevoda" : "Sprachen tauschen"}
+                >
+                  ⇄
+                </button>
+                <span className="text-stone-800">
+                  {targetLang === "sr" ? (isSr ? "🇷🇸 Srpski" : "🇷🇸 Serbisch") : (isSr ? "🇩🇪 Nemački" : "🇩🇪 Deutsch")}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="relative">
+                <textarea
+                  ref={inputRef}
+                  rows="3"
+                  value={inputText}
+                  onChange={e => setInputText(e.target.value)}
+                  placeholder={
+                    sourceLang === "sr"
+                      ? (isSr ? "Ukucaj reč ili rečenicu na srpskom (radi i bez kvačica, npr. caj)..." : "Serbisches Wort oder Satz eingeben (auch ohne Sonderzeichen, z.B. caj)...")
+                      : (isSr ? "Ukucaj reč ili rečenicu na nemačkom..." : "Deutsches Wort oder Satz eingeben...")
+                  }
+                  className="w-full p-3.5 pr-9 bg-stone-50 rounded-2xl border border-stone-200 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                />
+                {inputText && (
+                  <button
+                    type="button"
+                    onClick={() => { setInputText(""); setOnlineResult(null); setOfflineNotice(false); }}
+                    className="absolute right-3 top-3 text-stone-400 hover:text-stone-700 text-xs font-bold"
+                    title={isSr ? "Očisti" : "Löschen"}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {keycaps.map(ch => (
+                    <button
+                      key={ch}
+                      type="button"
+                      onClick={() => handleInsertChar(ch)}
+                      className="keycap px-3 py-1 text-xs text-stone-800 hover:bg-stone-50 shadow-2xs font-bold"
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setInputText(prev => prev.slice(0, -1))}
+                    className="keycap px-2.5 py-1 text-xs text-stone-500 hover:bg-stone-50"
+                    title={isSr ? "Obriši slovo" : "Zeichen löschen"}
+                  >
+                    ⌫
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!inputText.trim() || isLoading}
+                  onClick={() => runOnlineTranslate(inputText, sourceLang, targetLang)}
+                  className="px-4 py-2 bg-rose-900 hover:bg-rose-950 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition shadow-xs"
+                >
+                  {isLoading
+                    ? (isSr ? "Prevodi se..." : "Übersetze...")
+                    : (isSr ? "Prevedi ✦" : "Übersetzen ✦")}
+                </button>
+              </div>
+            </div>
+
+            {offlineNotice && (
+              <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl text-xs font-semibold flex items-center space-x-2">
+                <span>📡</span>
+                <span>
+                  {isSr
+                    ? "Offline — prikazani su pogoci iz naših 165+ kartica"
+                    : "Offline — Treffer aus unseren 165+ Karten"}
+                </span>
+              </div>
+            )}
+
+            {allDeckResults.length > 0 && (
+              <div className="space-y-2.5 pt-1">
+                {allDeckResults.map(w => {
+                  const matchedText = sourceLang === "sr" ? w.de : w.sr;
+                  const sourceVal = sourceLang === "sr" ? w.sr : w.de;
+                  const pron = sourceLang === "sr" ? w.dePron : w.srPron;
+                  const exText = sourceLang === "sr" ? w.exDe : w.exSr;
+                  return (
+                    <div key={w.id} className="bg-gradient-to-br from-rose-50/70 to-romantic-50/50 rounded-2xl p-4 border border-rose-200/80 space-y-2 shadow-2xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          ✓ {isSr ? "Iz našeg špila" : "Aus unserem Stapel"}
+                        </span>
+                        <span className="text-[10px] font-semibold text-stone-400">{w.cat}</span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="text-[11px] text-stone-500 font-medium">{sourceVal}</div>
+                        <div className="text-lg font-black text-rose-950">{matchedText}</div>
+                        {w.en && <div className="text-xs text-stone-500 italic">{w.en}</div>}
+                      </div>
+
+                      <PronunciationPill pron={pron} swissChip={w.swissChip} compact isSr={isSr} />
+
+                      {exText && (
+                        <p className="text-xs text-stone-600 italic bg-white/80 p-2 rounded-xl border border-rose-100">
+                          "{exText}"
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(matchedText, w.id)}
+                          className="px-3 py-1.5 bg-white hover:bg-stone-50 text-stone-800 rounded-xl text-xs font-bold border border-stone-200 transition"
+                        >
+                          📋 {copiedId === w.id ? (isSr ? "Kopirano! ✓" : "Kopiert! ✓") : (isSr ? "Kopiraj" : "Kopieren")}
+                        </button>
+                        <a
+                          href={`https://wa.me/?text=${encodeURIComponent(matchedText)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-xl text-xs font-bold border border-emerald-200 transition"
+                        >
+                          💬 WhatsApp
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {onlineResult && (
+              <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200/80 space-y-3 animate-in fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-100 text-sky-900 border border-sky-200">
+                    🌐 {isSr ? "Online prevod" : "Online-Übersetzung"}
+                  </span>
+                  <span className="text-[10px] text-stone-400 font-mono uppercase">
+                    {onlineResult.sourceLang} → {onlineResult.targetLang}
+                  </span>
+                </div>
+
+                <div>
+                  <div className="text-lg font-black text-stone-900">{onlineResult.translatedText}</div>
+                  <div className="text-xs text-stone-500 mt-0.5">{onlineResult.sourceText}</div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(onlineResult.translatedText, "online")}
+                    className="px-3 py-1.5 bg-white hover:bg-stone-100 text-stone-800 rounded-xl text-xs font-bold border border-stone-200 transition"
+                  >
+                    📋 {copiedId === "online" ? (isSr ? "Kopirano! ✓" : "Kopiert! ✓") : (isSr ? "Kopiraj" : "Kopieren")}
+                  </button>
+
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(onlineResult.translatedText)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-xl text-xs font-bold border border-emerald-200 transition"
+                  >
+                    💬 WhatsApp
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const srVal = onlineResult.sourceLang === "sr" ? onlineResult.sourceText : onlineResult.translatedText;
+                      const deVal = onlineResult.sourceLang === "de" ? onlineResult.sourceText : onlineResult.translatedText;
+                      handleSaveCard(srVal, deVal);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${savedFeedback ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-rose-900 hover:bg-rose-950 text-white border-rose-900 shadow-2xs'}`}
+                  >
+                    {savedFeedback
+                      ? (isSr ? "✓ Sačuvano u špil" : "✓ Gespeichert")
+                      : (isSr ? "＋ Sačuvaj kao karticu" : "＋ Als Karte speichern")}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {history.length > 0 && (
+            <div className="bg-white rounded-3xl p-5 border border-rose-100 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-stone-900 text-xs flex items-center space-x-1.5">
+                  <span>🕒</span>
+                  <span>{isSr ? "Nedavni prevodi (poslednjih 10)" : "Letzte Übersetzungen (max. 10)"}</span>
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setHistory([])}
+                  className="text-[11px] text-stone-400 hover:text-rose-700 underline"
+                >
+                  {isSr ? "Obriši istoriju" : "Verlauf löschen"}
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                {history.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setSourceLang(item.sourceLang);
+                      setInputText(item.sourceText);
+                      setOnlineResult(item);
+                    }}
+                    className="w-full p-2.5 bg-stone-50/80 hover:bg-rose-50/60 rounded-xl border border-stone-200/70 text-left flex items-center justify-between gap-3 transition text-xs"
+                  >
+                    <div className="min-w-0">
+                      <span className="font-bold text-stone-900 block truncate">{item.translatedText}</span>
+                      <span className="text-[11px] text-stone-500 block truncate">{item.sourceText}</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md flex-shrink-0 uppercase">
+                      {item.sourceLang}→{item.targetLang}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // =========================================================================
+    // SCREEN 3: LEARN (6 SUB-TABS: LESSONS, SOUNDS, ALPHABET, TRANSLATE, GRAMMAR, ALL WORDS)
     // =========================================================================
     function LearnView({ vocabulary, setVocabulary, isSr, isRadoica, learnerTrack }) {
       const [subTab, setSubTab] = useState("lessons"); // 'lessons', 'sounds', 'alphabet', 'grammar', 'words'
@@ -6495,6 +6953,14 @@
             >
               <span>🔤</span>
               <span>{isSr ? "Azbuka & Pismo" : "Alphabet & Schrift"}</span>
+            </button>
+
+            <button
+              onClick={() => setSubTab("translate")}
+              className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition flex items-center space-x-1.5 ${subTab === 'translate' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-600 hover:text-stone-900'}`}
+            >
+              <span>🌐</span>
+              <span>{isSr ? "Prevodilac" : "Übersetzer"}</span>
             </button>
 
             <button
@@ -6835,6 +7301,15 @@
                 </div>
               </div>
             </div>
+          )}
+
+          {subTab === "translate" && (
+            <TranslatorSubView
+              vocabulary={vocabulary}
+              setVocabulary={setVocabulary}
+              isSr={isSr}
+              isRadoica={isRadoica}
+            />
           )}
 
           {subTab === "grammar" && (
@@ -7963,7 +8438,7 @@
               {[
                 { id: "today", icon: "☀️", label: isSr ? "Danas (Bento)" : "Heute (Bento)" },
                 { id: "review", icon: "🎴", label: isSr ? "Ponavljanje (FSRS)" : "Wiederholen (FSRS)" },
-                { id: "learn", icon: "📖", label: isSr ? "Uči (5 Modula)" : "Lernen (5 Module)" },
+                { id: "learn", icon: "📖", label: isSr ? "Uči (6 Modula)" : "Lernen (6 Module)" },
                 { id: "practice", icon: "⚡", label: isSr ? "Vežba (4 Režima)" : "Üben (4 Modi)" },
                 { id: "progress", icon: "📊", label: isSr ? "Napredak & Bedževi" : "Fortschritt" },
                 { id: "note", icon: "💌", label: isSr ? "Pismo & Razglednice" : "Liebesbrief" }
