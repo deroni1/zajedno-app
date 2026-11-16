@@ -4503,44 +4503,7 @@
   }
 ];
     const SEED_TASKS = [];
-    const SEED_BOOKS = [
-  {
-    "id": "bk-1",
-    "title": "Mali Princ (Der kleine Prinz)",
-    "author": "Antoine de Saint-Exupéry",
-    "status": "Finished",
-    "rating": 5,
-    "addedBy": "Malak",
-    "quote": "Čovek samo srcem dobro vidi. Suština se očima ne da sagledati.",
-    "quoteDe": "Man sieht nur mit dem Herzen gut. Das Wesentliche ist für die Augen unsichtbar.",
-    "thoughts": "Naša omiljena knjiga o ljubavi i anđelima.",
-    "thoughtsDe": "Unser Lieblingsbuch über die Liebe und Engel."
-  },
-  {
-    "id": "bk-2",
-    "title": "Kafka on the Shore",
-    "author": "Haruki Murakami",
-    "status": "Currently Reading",
-    "rating": 4,
-    "addedBy": "Radoica",
-    "quote": "Memories warm you up from the inside.",
-    "quoteDe": "Erinnerungen wärmen dich von innen heraus.",
-    "thoughts": "Inspiracija za naše duge noćne razgovore.",
-    "thoughtsDe": "Inspiration für unsere langen nächtlichen Gespräche."
-  },
-  {
-    "id": "bk-3",
-    "title": "Normal People",
-    "author": "Sally Rooney",
-    "status": "Want to Read",
-    "rating": 0,
-    "addedBy": "Malak",
-    "quote": "",
-    "quoteDe": "",
-    "thoughts": "Gledali smo seriju, sad zajedno čitamo knjigu.",
-    "thoughtsDe": "Wir haben die Serie geschaut, jetzt lesen wir zusammen das Buch."
-  }
-];
+    const SEED_BOOKS = [];
     const SEED_REUNION = {
   "titleSr": "Zimsko viđanje & Zagrljaj ❄️❤️",
   "titleDe": "Wintertreffen & Umarmung ❄️❤️",
@@ -9196,36 +9159,58 @@
             </div>
           </form>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {books.map(b => {
-              const displayQuote = (!isSr && b.quoteDe) ? b.quoteDe : b.quote;
-              const displayThoughts = (!isSr && b.thoughtsDe) ? b.thoughtsDe : b.thoughts;
-              return (
-                <div key={b.id} className="bg-white p-4 rounded-2xl border border-rose-100 shadow-2xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-rose-50 text-rose-700">
-                      {formatStatus(b.status)}
-                    </span>
-                    <span className="text-[10px] text-stone-400">
-                      {isSr ? "Dodao/la:" : "Von:"} {b.addedBy}
-                    </span>
+          {books.length === 0 ? (
+            <div className="bg-white rounded-3xl p-8 sm:p-10 border border-rose-100 shadow-2xs text-center space-y-2">
+              <span className="text-3xl block">📚</span>
+              <p className="font-bold text-stone-800 text-sm">
+                {isSr ? "Naša polica za knjige je trenutno prazna." : "Euer Bücherregal ist derzeit leer."}
+              </p>
+              <p className="text-xs text-stone-500 max-w-sm mx-auto">
+                {isSr ? "Iskoristite formu iznad da dodate knjigu koju želite zajedno da čitate ili koju ste već pročitali! ❤️" : "Nutzt das Formular oben, um ein Buch hinzuzufügen, das ihr zusammen lesen möchtet! ❤️"}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {books.map(b => {
+                const displayQuote = (!isSr && b.quoteDe) ? b.quoteDe : b.quote;
+                const displayThoughts = (!isSr && b.thoughtsDe) ? b.thoughtsDe : b.thoughts;
+                return (
+                  <div key={b.id} className="bg-white p-4 rounded-2xl border border-rose-100 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-rose-50 text-rose-700">
+                        {formatStatus(b.status)}
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[10px] text-stone-400">
+                          {isSr ? "Dodao/la:" : "Von:"} {b.addedBy}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setBooks(prev => prev.filter(item => item.id !== b.id))}
+                          className="text-stone-300 hover:text-rose-600 transition p-0.5 text-xs font-bold leading-none"
+                          title={isSr ? "Obriši knjigu" : "Buch entfernen"}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                    <h4 className="font-bold text-stone-900 text-sm">{b.title}</h4>
+                    <p className="text-xs text-stone-500">{b.author}</p>
+                    {displayQuote && (
+                      <p className="text-[11px] italic bg-rose-50/40 p-2.5 rounded-xl text-stone-600 border border-rose-100/50">
+                        "{displayQuote}"
+                      </p>
+                    )}
+                    {displayThoughts && (
+                      <p className="text-[11px] text-stone-500">
+                        💭 {displayThoughts}
+                      </p>
+                    )}
                   </div>
-                  <h4 className="font-bold text-stone-900 text-sm">{b.title}</h4>
-                  <p className="text-xs text-stone-500">{b.author}</p>
-                  {displayQuote && (
-                    <p className="text-[11px] italic bg-rose-50/40 p-2.5 rounded-xl text-stone-600 border border-rose-100/50">
-                      "{displayQuote}"
-                    </p>
-                  )}
-                  {displayThoughts && (
-                    <p className="text-[11px] text-stone-500">
-                      💭 {displayThoughts}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       );
     }
@@ -9384,17 +9369,8 @@
       });
 
       const [books, setBooks] = useState(() => {
-        const s = localStorage.getItem("pro_couple_books");
-        if (!s) return SEED_BOOKS;
-        try {
-          const parsed = JSON.parse(s);
-          return parsed.map(b => {
-            const seed = SEED_BOOKS.find(sb => sb.id === b.id);
-            return seed ? { ...seed, ...b, quoteDe: b.quoteDe || seed.quoteDe, thoughtsDe: b.thoughtsDe || seed.thoughtsDe } : b;
-          });
-        } catch (e) {
-          return SEED_BOOKS;
-        }
+        const s = localStorage.getItem("pro_couple_books_empty");
+        return s ? JSON.parse(s) : SEED_BOOKS;
       });
 
       const [reunion, setReunion] = useState(() => {
@@ -9435,6 +9411,7 @@
         localStorage.setItem("pro_couple_lang", uiLang);
         localStorage.setItem("pro_couple_vocab", JSON.stringify(vocabulary));
         localStorage.setItem("pro_couple_tasks_empty", JSON.stringify(tasks));
+        localStorage.setItem("pro_couple_books_empty", JSON.stringify(books));
         localStorage.setItem("pro_couple_books", JSON.stringify(books));
         localStorage.setItem("pro_couple_reunion", JSON.stringify(reunion));
         localStorage.setItem("pro_couple_lovenote", JSON.stringify(loveNote));
