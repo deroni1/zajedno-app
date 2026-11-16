@@ -17,6 +17,10 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+  <!-- Firebase App & Firestore (Compat for browser single-file React) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -4502,6 +4506,23 @@
     "learnedMalak": false
   }
 ];
+    // =========================================================================
+    // 🔥 FIREBASE REAL-TIME CLOUD CONFIGURATION
+    // =========================================================================
+    // Tip: You can paste your Firebase project credentials here directly,
+    // OR enter them in the app via the ☁️ Cloud Sync dialog!
+    const EMBEDDED_FIREBASE_CONFIG = null;
+    /* Example:
+    const EMBEDDED_FIREBASE_CONFIG = {
+      apiKey: "AIzaSy...",
+      authDomain: "zajedno-app.firebaseapp.com",
+      projectId: "zajedno-app",
+      storageBucket: "zajedno-app.appspot.com",
+      messagingSenderId: "1234567890",
+      appId: "1:1234567890:web:abcdef"
+    };
+    */
+
     const SEED_TASKS = [];
     const SEED_BOOKS = [];
     const SEED_REUNION = {
@@ -9305,15 +9326,24 @@
       );
     }
 
-    function SyncModal({ vocabulary, tasks, books, reunion, loveNote, isSr, onClose, onImport }) {
+    function SyncModal({ 
+      vocabulary, tasks, books, reunion, loveNote, isSr, onClose, onImport,
+      firebaseConfig, onSaveFirebaseConfig, onDisconnectFirebase,
+      cloudSyncStatus, lastCloudSync, cloudUpdatedBy, onManualCloudPush
+    }) {
+      const [tab, setTab] = useState("cloud"); // 'cloud' or 'offline'
+      const [configInput, setConfigInput] = useState("");
+      const [showHelp, setShowHelp] = useState(false);
+      const [errorMsg, setErrorMsg] = useState("");
+
       const code = btoa(unescape(encodeURIComponent(JSON.stringify({ vocabulary, tasks, books, reunion, loveNote }))));
 
-      const handleCopy = () => {
+      const handleCopyCode = () => {
         navigator.clipboard.writeText(code);
         alert(isSr ? "Sinhronizacioni kod je kopiran!" : "Code kopiert!");
       };
 
-      const handlePaste = () => {
+      const handlePasteCode = () => {
         const inp = prompt(isSr ? "Zalepi sinhronizacioni kod ovde:" : "Synchronisationscode hier einfügen:");
         if (inp) {
           try {
@@ -9325,23 +9355,225 @@
         }
       };
 
+      const handleSaveConfig = (e) => {
+        e.preventDefault();
+        setErrorMsg("");
+        if (!configInput.trim()) return;
+
+        let parsed = null;
+        try {
+          parsed = JSON.parse(configInput.trim());
+        } catch (err1) {
+          try {
+            const cleaned = configInput.replace(/const\s+firebaseConfig\s*=\s*/, "").replace(/;\s*$/, "");
+            const fn = new Function("return " + cleaned);
+            parsed = fn();
+          } catch (err2) {
+            setErrorMsg(isSr ? "Nevažeći format. Proverite da li ste kopirali celokupan firebaseConfig objekat." : "Ungültiges Format. Bitte prüfe, ob das gesamte firebaseConfig-Objekt kopiert wurde.");
+            return;
+          }
+        }
+
+        if (!parsed || !parsed.projectId) {
+          setErrorMsg(isSr ? "Nedostaje 'projectId' u konfiguraciji." : "Fehlende 'projectId' in der Konfiguration.");
+          return;
+        }
+
+        onSaveFirebaseConfig(parsed);
+      };
+
+      const handleCopyFirebaseConfig = () => {
+        if (!firebaseConfig) return;
+        navigator.clipboard.writeText(JSON.stringify(firebaseConfig, null, 2));
+        alert(isSr ? "Firebase podešavanja kopirana! Pošaljite ih partneru preko WhatsApp-a." : "Firebase-Einstellungen kopiert! Sende sie an deinen Partner per WhatsApp.");
+      };
+
       return (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-3 text-xs border border-rose-100 shadow-xl">
-            <h3 className="font-bold text-stone-900 text-sm">
-              {isSr ? "Sinhronizacija telefona" : "Handy-Synchronisation"}
-            </h3>
-            <textarea readOnly value={code} rows="3" className="w-full p-2 bg-stone-100 rounded-xl font-mono text-[10px] select-all border" />
-            <div className="flex items-center justify-between">
-              <button onClick={handleCopy} className="text-rose-600 font-semibold hover:underline">
-                {isSr ? "Kopiraj kod" : "Code kopieren"}
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4" onClick={onClose}>
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 text-xs border border-rose-100 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            
+            <div className="flex items-center justify-between border-b border-rose-50 pb-3">
+              <div>
+                <h3 className="font-extrabold text-stone-900 text-sm flex items-center space-x-1.5">
+                  <span>☁️</span>
+                  <span>{isSr ? "Sinhronizacija u Realnom Vremenu" : "Echtzeit-Synchronisation"}</span>
+                </h3>
+                <p className="text-[11px] text-stone-400 mt-0.5">
+                  {isSr ? "Povezuje Beograd 🇷🇸 i Cirih 🇨🇭 uživo" : "Verbindet Belgrad 🇷🇸 & Zürich 🇨🇭 live"}
+                </p>
+              </div>
+              <button onClick={onClose} className="p-1 text-stone-400 hover:text-stone-700 text-sm font-bold">✕</button>
+            </div>
+
+            {/* Sub-tabs */}
+            <div className="flex bg-rose-50/60 p-1 rounded-xl gap-1">
+              <button
+                type="button"
+                onClick={() => setTab("cloud")}
+                className={`flex-1 py-1.5 rounded-lg font-bold text-xs transition flex items-center justify-center space-x-1.5 ${tab === 'cloud' ? 'bg-white text-rose-950 shadow-2xs' : 'text-stone-500 hover:text-stone-800'}`}
+              >
+                <span>☁️ Cloud (Firebase)</span>
+                {cloudSyncStatus === 'connected' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}
               </button>
-              <button onClick={handlePaste} className="text-stone-700 font-semibold hover:underline">
-                {isSr ? "Uvezi kod" : "Code importieren"}
+              <button
+                type="button"
+                onClick={() => setTab("offline")}
+                className={`flex-1 py-1.5 rounded-lg font-bold text-xs transition flex items-center justify-center space-x-1.5 ${tab === 'offline' ? 'bg-white text-rose-950 shadow-2xs' : 'text-stone-500 hover:text-stone-800'}`}
+              >
+                <span>📱 Ručni Kod (Offline)</span>
               </button>
             </div>
-            <div className="flex justify-end pt-1">
-              <button onClick={onClose} className="px-3 py-1.5 text-stone-500">
+
+            {tab === "cloud" && (
+              <div className="space-y-3.5">
+                {cloudSyncStatus === "connected" ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-2.5 text-emerald-950">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                      <span className="font-extrabold text-xs text-emerald-900">
+                        {isSr ? "Uživo sinhronizovano sa oblakom!" : "Live mit der Cloud synchronisiert!"}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-emerald-800 leading-relaxed">
+                      {isSr
+                        ? "Svaki zadatak, pročitana knjiga, odbrojavanje i ljubavno pismo se odmah bez odlaganja ažuriraju na oba telefona."
+                        : "Jede Aufgabe, jedes Buch, der Countdown und euer Liebesbrief aktualisieren sich sofort auf beiden Telefonen."}
+                    </p>
+
+                    <div className="pt-2 border-t border-emerald-200/60 text-[10px] space-y-1 text-emerald-700 font-mono">
+                      <div>• {isSr ? "Poslednja sinhronizacija:" : "Letzte Synchronisation:"} {lastCloudSync ? lastCloudSync.toLocaleTimeString() : (isSr ? "Upravo" : "Gerade eben")}</div>
+                      {cloudUpdatedBy && <div>• {isSr ? "Poslednja izmena od:" : "Letzte Änderung von:"} {cloudUpdatedBy}</div>}
+                      {firebaseConfig?.projectId && <div>• {isSr ? "Projekat:" : "Projekt:"} {firebaseConfig.projectId}</div>}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {onManualCloudPush && (
+                        <button
+                          type="button"
+                          onClick={onManualCloudPush}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-[11px] transition shadow-2xs flex items-center space-x-1"
+                        >
+                          <span>🔄</span>
+                          <span>{isSr ? "Prisili sinhronizaciju" : "Jetzt synchronisieren"}</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleCopyFirebaseConfig}
+                        className="px-3 py-1.5 bg-white border border-emerald-300 text-emerald-900 rounded-xl font-bold text-[11px] transition hover:bg-emerald-100/50 flex items-center space-x-1"
+                      >
+                        <span>📋</span>
+                        <span>{isSr ? "Kopiraj za Malak/Rada" : "Für Partner kopieren"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onDisconnectFirebase}
+                        className="px-2 py-1.5 text-red-600 hover:text-red-800 text-[10px] font-semibold underline"
+                      >
+                        {isSr ? "Isključi Cloud" : "Trennen"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 space-y-1 text-amber-950">
+                      <div className="font-bold flex items-center space-x-1.5 text-xs text-amber-900">
+                        <span>⚡</span>
+                        <span>{isSr ? "Kako radi automatsko ažuriranje?" : "Wie funktioniert die Live-Aktualisierung?"}</span>
+                      </div>
+                      <p className="text-[11px] text-amber-800 leading-relaxed">
+                        {isSr
+                          ? "Kada povežete besplatan Google Firebase, čim dodate knjigu ili čekirate zadatak, on se istog sekunda pojavljuje i na drugom telefonu!"
+                          : "Sobald Google Firebase verbunden ist, erscheint jedes neue Buch oder jede abgehakte Aufgabe sofort auf beiden Telefonen!"}
+                      </p>
+                    </div>
+
+                    <form onSubmit={handleSaveConfig} className="space-y-2">
+                      <label className="block text-[11px] font-bold text-stone-700">
+                        {isSr ? "Zalepi Firebase konfiguraciju (JSON ili JS objekat):" : "Firebase-Konfiguration einfügen (JSON oder JS-Objekt):"}
+                      </label>
+                      <textarea
+                        rows="4"
+                        value={configInput}
+                        onChange={e => setConfigInput(e.target.value)}
+                        placeholder={`{\n  "apiKey": "AIzaSy...",\n  "projectId": "zajedno-app",\n  "appId": "..."\n}`}
+                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-rose-400"
+                        required
+                      />
+
+                      {errorMsg && (
+                        <p className="text-[11px] text-red-600 font-bold bg-red-50 p-2 rounded-lg border border-red-100">
+                          ⚠️ {errorMsg}
+                        </p>
+                      )}
+
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowHelp(prev => !prev)}
+                          className="text-[11px] text-rose-700 font-bold hover:underline flex items-center space-x-1"
+                        >
+                          <span>❓</span>
+                          <span>{isSr ? "Uputstvo za 1 minut" : "1-Minuten Anleitung"}</span>
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-xl font-bold text-xs shadow-xs transition"
+                        >
+                          {isSr ? "Sačuvaj i Poveži 🚀" : "Speichern & Verbinden 🚀"}
+                        </button>
+                      </div>
+                    </form>
+
+                    {showHelp && (
+                      <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3.5 space-y-2 text-[11px] text-stone-700 animate-in fade-in">
+                        <span className="font-bold text-stone-900 block text-xs">
+                          {isSr ? "Brzi besplatni vodič (3 koraka):" : "Schnell-Anleitung (3 Schritte):"}
+                        </span>
+                        <ol className="list-decimal list-inside space-y-1.5 text-[10.5px] leading-relaxed">
+                          <li>
+                            {isSr ? "Otvori " : "Öffne "}
+                            <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-rose-700 font-bold underline">console.firebase.google.com</a>
+                            {isSr ? " i klikni 'Add project' (nazovi ga npr. zajedno-app)." : " und klicke auf 'Projekt hinzufügen'."}
+                          </li>
+                          <li>
+                            {isSr ? "U meniju levo otvori " : "Öffne links "}
+                            <b>Firestore Database</b> → <b>Create database</b> → {isSr ? "izaberi lokaciju i 'Start in test mode'." : "wähle 'Im Testmodus starten'."}
+                          </li>
+                          <li>
+                            {isSr ? "U Project Settings (zupčanik ⚙️) dodaj Web aplikaciju (</>) i kopiraj prikazani " : "In Projekteinstellungen Web-App (</>) hinzufügen und "}
+                            <code>const firebaseConfig = ...</code> {isSr ? "i zalepi ga ovde!" : "kopieren und hier einfügen!"}
+                          </li>
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {tab === "offline" && (
+              <div className="space-y-3">
+                <p className="text-[11px] text-stone-500 leading-relaxed">
+                  {isSr
+                    ? "Ako nemate internet ili Firebase, možete ručno preneti podatke kopiranjem ovog koda preko WhatsApp-a:"
+                    : "Falls ihr kein Internet oder Firebase habt, könnt ihr Daten manuell per WhatsApp-Code übertragen:"}
+                </p>
+                <textarea readOnly value={code} rows="3" className="w-full p-2 bg-stone-100 rounded-xl font-mono text-[10px] select-all border border-stone-200" />
+                <div className="flex items-center justify-between pt-1">
+                  <button onClick={handleCopyCode} className="text-rose-600 font-bold hover:underline">
+                    {isSr ? "📋 Kopiraj kod" : "📋 Code kopieren"}
+                  </button>
+                  <button onClick={handlePasteCode} className="text-stone-700 font-bold hover:underline">
+                    {isSr ? "📥 Uvezi kod" : "📥 Code importieren"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-rose-50">
+              <button onClick={onClose} className="px-4 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-semibold transition">
                 {isSr ? "Zatvori" : "Schliessen"}
               </button>
             </div>
@@ -9405,6 +9637,162 @@
 
       const [isEditReunionOpen, setIsEditReunionOpen] = useState(false);
       const [isSyncOpen, setIsSyncOpen] = useState(false);
+
+      // Firebase Real-time Cloud Synchronization
+      const [firebaseConfig, setFirebaseConfig] = useState(() => {
+        if (typeof EMBEDDED_FIREBASE_CONFIG !== 'undefined' && EMBEDDED_FIREBASE_CONFIG && EMBEDDED_FIREBASE_CONFIG.projectId) {
+          return EMBEDDED_FIREBASE_CONFIG;
+        }
+        try {
+          const stored = localStorage.getItem("zajedno_firebase_config");
+          return stored ? JSON.parse(stored) : null;
+        } catch (e) {
+          return null;
+        }
+      });
+
+      const [cloudSyncStatus, setCloudSyncStatus] = useState("disconnected"); // 'disconnected', 'connecting', 'connected', 'error'
+      const [lastCloudSync, setLastCloudSync] = useState(null);
+      const [cloudUpdatedBy, setCloudUpdatedBy] = useState(null);
+      const isRemoteUpdateRef = useRef(false);
+      const firestoreDbRef = useRef(null);
+
+      const prevTasksRef = useRef(tasks);
+      const prevBooksRef = useRef(books);
+      const prevReunionRef = useRef(reunion);
+      const prevLoveNoteRef = useRef(loveNote);
+
+      // Initialize Firebase on mount or when firebaseConfig changes
+      useEffect(() => {
+        if (!firebaseConfig || !firebaseConfig.projectId || typeof firebase === 'undefined') {
+          setCloudSyncStatus("disconnected");
+          return;
+        }
+
+        try {
+          setCloudSyncStatus("connecting");
+          let appInstance;
+          if (firebase.apps && firebase.apps.length > 0) {
+            appInstance = firebase.apps[0];
+          } else {
+            appInstance = firebase.initializeApp(firebaseConfig);
+          }
+          const db = firebase.firestore();
+          firestoreDbRef.current = db;
+
+          try {
+            db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+          } catch (e) {}
+
+          const docRef = db.collection("zajedno").doc("shared_state");
+
+          const unsubscribe = docRef.onSnapshot(
+            (snapshot) => {
+              if (snapshot.exists) {
+                const data = snapshot.data();
+                isRemoteUpdateRef.current = true;
+                if (data.tasks !== undefined) {
+                  setTasks(data.tasks);
+                  prevTasksRef.current = data.tasks;
+                }
+                if (data.books !== undefined) {
+                  setBooks(data.books);
+                  prevBooksRef.current = data.books;
+                }
+                if (data.reunion !== undefined) {
+                  setReunion(data.reunion);
+                  prevReunionRef.current = data.reunion;
+                }
+                if (data.loveNote !== undefined) {
+                  setLoveNote(data.loveNote);
+                  prevLoveNoteRef.current = data.loveNote;
+                }
+                if (data.updatedBy) {
+                  setCloudUpdatedBy(data.updatedBy);
+                }
+                setCloudSyncStatus("connected");
+                setLastCloudSync(new Date());
+              } else {
+                docRef.set({
+                  tasks,
+                  books,
+                  reunion,
+                  loveNote,
+                  updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                  updatedBy: currentUser === 'radoica' ? 'Radoica' : 'Malak'
+                }, { merge: true }).then(() => {
+                  setCloudSyncStatus("connected");
+                  setLastCloudSync(new Date());
+                });
+              }
+            },
+            (error) => {
+              console.warn("Firestore listener warning:", error);
+              setCloudSyncStatus("error");
+            }
+          );
+
+          return () => {
+            if (unsubscribe) unsubscribe();
+          };
+        } catch (err) {
+          console.error("Firebase init failed:", err);
+          setCloudSyncStatus("error");
+        }
+      }, [firebaseConfig]);
+
+      // Push local user changes to Cloud Firestore
+      useEffect(() => {
+        if (isRemoteUpdateRef.current) {
+          isRemoteUpdateRef.current = false;
+          return;
+        }
+
+        const updates = {};
+        if (JSON.stringify(prevTasksRef.current) !== JSON.stringify(tasks)) {
+          updates.tasks = tasks;
+          prevTasksRef.current = tasks;
+        }
+        if (JSON.stringify(prevBooksRef.current) !== JSON.stringify(books)) {
+          updates.books = books;
+          prevBooksRef.current = books;
+        }
+        if (JSON.stringify(prevReunionRef.current) !== JSON.stringify(reunion)) {
+          updates.reunion = reunion;
+          prevReunionRef.current = reunion;
+        }
+        if (JSON.stringify(prevLoveNoteRef.current) !== JSON.stringify(loveNote)) {
+          updates.loveNote = loveNote;
+          prevLoveNoteRef.current = loveNote;
+        }
+
+        if (Object.keys(updates).length > 0 && firestoreDbRef.current && cloudSyncStatus === "connected") {
+          firestoreDbRef.current.collection("zajedno").doc("shared_state").set({
+            ...updates,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedBy: currentUser === 'radoica' ? 'Radoica' : 'Malak'
+          }, { merge: true }).then(() => {
+            setLastCloudSync(new Date());
+          }).catch(err => {
+            console.warn("Cloud sync write error:", err);
+          });
+        }
+      }, [tasks, books, reunion, loveNote, cloudSyncStatus, currentUser]);
+
+      const handleManualCloudPush = () => {
+        if (!firestoreDbRef.current) return;
+        firestoreDbRef.current.collection("zajedno").doc("shared_state").set({
+          tasks,
+          books,
+          reunion,
+          loveNote,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedBy: currentUser === 'radoica' ? 'Radoica' : 'Malak'
+        }, { merge: true }).then(() => {
+          setLastCloudSync(new Date());
+          alert(isSr ? "Podaci uspešno poslati u oblak!" : "Daten erfolgreich in die Cloud synchronisiert!");
+        });
+      };
 
       useEffect(() => {
         localStorage.setItem("pro_couple_user", currentUser);
@@ -9517,10 +9905,11 @@
 
                 <button 
                   onClick={() => setIsSyncOpen(true)}
-                  className="p-1.5 rounded-xl hover:bg-rose-50 border border-rose-100 text-stone-500 transition"
-                  title={isSr ? "Sinhronizacija telefona" : "Handy-Synchronisation"}
+                  className={`p-1.5 rounded-xl border transition flex items-center space-x-1 ${cloudSyncStatus === 'connected' ? 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-2xs' : 'hover:bg-rose-50 border-rose-100 text-stone-500'}`}
+                  title={isSr ? (cloudSyncStatus === 'connected' ? "Oblak aktivan (Uživo)" : "Sinhronizacija telefona") : (cloudSyncStatus === 'connected' ? "Cloud Live aktiv" : "Handy-Synchronisation")}
                 >
-                  📱
+                  <span>{cloudSyncStatus === 'connected' ? "☁️" : "📱"}</span>
+                  {cloudSyncStatus === 'connected' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}
                 </button>
 
               </div>
@@ -9719,6 +10108,20 @@
                 if (d.loveNote) setLoveNote(d.loveNote);
                 setIsSyncOpen(false);
               }}
+              firebaseConfig={firebaseConfig}
+              onSaveFirebaseConfig={(cfg) => {
+                localStorage.setItem("zajedno_firebase_config", JSON.stringify(cfg));
+                setFirebaseConfig(cfg);
+              }}
+              onDisconnectFirebase={() => {
+                localStorage.removeItem("zajedno_firebase_config");
+                setFirebaseConfig(null);
+                setCloudSyncStatus("disconnected");
+              }}
+              cloudSyncStatus={cloudSyncStatus}
+              lastCloudSync={lastCloudSync}
+              cloudUpdatedBy={cloudUpdatedBy}
+              onManualCloudPush={handleManualCloudPush}
             />
           )}
 
