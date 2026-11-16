@@ -4525,7 +4525,7 @@
   "titleSr": "Zimsko viđanje & Zagrljaj ❄️❤️",
   "titleDe": "Wintertreffen & Umarmung ❄️❤️",
   "location": "Cirih / Belgrad",
-  "date": "2026-12-24T18:00:00"
+  "date": "2026-12-01T18:00:00"
 };
     const SEED_LOVE_NOTE = {
   "textSr": "Draga moja Malak (Liebste Malak), od onog leta u Hrvatskoj kada smo se upoznali na obali Jadrana, svaka sekunda sa tobom je čist dar. Dok ti u mirnom Embrahu blizu Ciriha kuvaš svoj omiljeni Kamillentee, a ja u Beogradu sedim uz nanu i učim za fakultet, znaj da stotine kilometara ne znače ništa. Svaka reč koju naučimo na srpskom i nemačkom nas spaja i gradi naš zajednički dom. Brojim minute do sledećeg zagrljaja na aerodromu! Volim te najviše na svetu! Tvoj Rade ❤️",
@@ -9602,7 +9602,7 @@
       });
 
       const [reunion, setReunion] = useState(() => {
-        const s = localStorage.getItem("pro_couple_reunion");
+        const s = localStorage.getItem("pro_couple_reunion_dec1");
         return s ? JSON.parse(s) : SEED_REUNION;
       });
 
@@ -9797,6 +9797,7 @@
         localStorage.setItem("pro_couple_tasks_empty", JSON.stringify(tasks));
         localStorage.setItem("pro_couple_books_empty", JSON.stringify(books));
         localStorage.setItem("pro_couple_books", JSON.stringify(books));
+        localStorage.setItem("pro_couple_reunion_dec1", JSON.stringify(reunion));
         localStorage.setItem("pro_couple_reunion", JSON.stringify(reunion));
         localStorage.setItem("pro_couple_lovenote", JSON.stringify(loveNote));
         localStorage.setItem("zajedno_daily_missions", JSON.stringify(dailyMissions));
