@@ -4489,7 +4489,9 @@
     "rating": 5,
     "addedBy": "Malak",
     "quote": "Čovek samo srcem dobro vidi. Suština se očima ne da sagledati.",
-    "thoughts": "Naša omiljena knjiga o ljubavi i anđelima."
+    "quoteDe": "Man sieht nur mit dem Herzen gut. Das Wesentliche ist für die Augen unsichtbar.",
+    "thoughts": "Naša omiljena knjiga o ljubavi i anđelima.",
+    "thoughtsDe": "Unser Lieblingsbuch über die Liebe und Engel."
   },
   {
     "id": "bk-2",
@@ -4499,7 +4501,9 @@
     "rating": 4,
     "addedBy": "Radoica",
     "quote": "Memories warm you up from the inside.",
-    "thoughts": "Inspiracija za naše duge noćne razgovore."
+    "quoteDe": "Erinnerungen wärmen dich von innen heraus.",
+    "thoughts": "Inspiracija za naše duge noćne razgovore.",
+    "thoughtsDe": "Inspiration für unsere langen nächtlichen Gespräche."
   },
   {
     "id": "bk-3",
@@ -4509,7 +4513,9 @@
     "rating": 0,
     "addedBy": "Malak",
     "quote": "",
-    "thoughts": "Gledali smo seriju, sad zajedno čitamo knjigu."
+    "quoteDe": "",
+    "thoughts": "Gledali smo seriju, sad zajedno čitamo knjigu.",
+    "thoughtsDe": "Wir haben die Serie geschaut, jetzt lesen wir zusammen das Buch."
   }
 ];
     const SEED_REUNION = {
@@ -4522,7 +4528,8 @@
   "textSr": "Draga moja Malak (Liebste Malak), od onog leta u Hrvatskoj kada smo se upoznali na obali Jadrana, svaka sekunda sa tobom je čist dar. Dok ti u mirnom Embrahu blizu Ciriha kuvaš svoj omiljeni Kamillentee, a ja u Beogradu sedim uz nanu i učim za fakultet, znaj da stotine kilometara ne znače ništa. Svaka reč koju naučimo na srpskom i nemačkom nas spaja i gradi naš zajednički dom. Brojim minute do sledećeg zagrljaja na aerodromu! Volim te najviše na svetu! Tvoj Rade ❤️",
   "textDe": "Liebste Malak, seit jenem Sommer in Kroatien ist jede Sekunde mit dir ein Geschenk. Während du in Embrach deinen Kamillentee trinkst und ich in Belgrad bei Minztee lerne, löscht jedes neue Wort die Distanz aus. Ich zähle die Minuten bis zu unserer nächsten Umarmung am Flughafen! Ich liebe dich über alles! Dein Rade ❤️",
   "author": "Radoica",
-  "updatedAt": "Pre nekoliko trenutaka"
+  "updatedAt": "Pre nekoliko trenutaka",
+  "updatedAtDe": "Vor wenigen Augenblicken"
 };
     const SWISS_SOUND_CHEAT_SHEET = [
   {
@@ -8531,6 +8538,10 @@
       const [noteDraft, setNoteDraft] = useState(isSr ? loveNote.textSr : loveNote.textDe);
 
       useEffect(() => {
+        setNoteDraft(isSr ? loveNote.textSr : loveNote.textDe);
+      }, [isSr, loveNote]);
+
+      useEffect(() => {
         const updateTimer = () => {
           const diff = new Date(reunion.date).getTime() - new Date().getTime();
           if (diff <= 0) {
@@ -8557,7 +8568,8 @@
           textSr: isSr ? noteDraft : prev.textSr,
           textDe: !isSr ? noteDraft : prev.textDe,
           author: isRadoica ? "Radoica" : "Malak",
-          updatedAt: isSr ? "Upravo sada" : "Gerade eben"
+          updatedAt: isSr ? "Upravo sada" : "Gerade eben",
+          updatedAtDe: "Gerade eben"
         }));
         setIsEditingNote(false);
       };
@@ -8655,8 +8667,8 @@
                   "{isSr ? loveNote.textSr : loveNote.textDe}"
                 </p>
                 <div className="flex items-center justify-between text-[10px] text-stone-400">
-                  <span>Autor: <strong className="text-stone-600">{loveNote.author}</strong></span>
-                  <span>{loveNote.updatedAt}</span>
+                  <span>{isSr ? "Autor:" : "Von:"} <strong className="text-stone-600">{loveNote.author}</strong></span>
+                  <span>{!isSr && loveNote.updatedAtDe ? loveNote.updatedAtDe : loveNote.updatedAt}</span>
                 </div>
               </div>
             )}
@@ -8732,7 +8744,7 @@
     }
 
     // =========================================================================
-    // 3. TO-DO & BUCKET LIST (PRESERVED)
+    // 3. TO-DO & BUCKET LIST (PRESERVED & LOCALIZED)
     // =========================================================================
     function TasksBucketListView({ tasks, setTasks, isSr, isRadoica }) {
       const [tab, setTab] = useState("daily");
@@ -8772,7 +8784,7 @@
                 onClick={() => setTab("daily")}
                 className={`px-3 py-1 rounded-lg transition ${tab === 'daily' ? 'bg-white text-stone-900 shadow-xs' : 'text-stone-600'}`}
               >
-                Kratkoročni Zadaci ({tasks.filter(t => t.type === 'daily').length})
+                {isSr ? "Kratkoročni Zadaci" : "Kurzfristige Aufgaben"} ({tasks.filter(t => t.type === 'daily').length})
               </button>
               <button 
                 onClick={() => setTab("bucket")}
@@ -8783,20 +8795,24 @@
             </div>
 
             <span className="text-xs text-stone-500 font-medium">
-              {filtered.filter(t => !t.done).length} na čekanju
+              {filtered.filter(t => !t.done).length} {isSr ? "na čekanju" : "offen"}
             </span>
           </div>
 
           <form onSubmit={handleAdd} className="bg-white p-4 rounded-3xl border border-rose-100 shadow-2xs space-y-2.5 text-xs">
             <span className="font-bold text-stone-800 block text-xs">
-              + {tab === 'daily' ? "Novi zadatak pre susreta:" : "Nova zajednička želja (Bucket list):"}
+              + {tab === 'daily'
+                ? (isSr ? "Novi zadatak pre susreta:" : "Neue Aufgabe vor dem Wiedersehen:")
+                : (isSr ? "Nova zajednička želja (Bucket list):" : "Neuer gemeinsamer Wunsch (Bucket List):")}
             </span>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input 
                 type="text"
                 required
-                placeholder={tab === 'daily' ? "npr. Kupiti karte za voz, pasoš..." : "npr. Poseta dvorcu Šenbrun..."}
+                placeholder={tab === 'daily'
+                  ? (isSr ? "npr. Kupiti karte za voz, pasoš..." : "z.B. Zugtickets buchen, Reisepass...")
+                  : (isSr ? "npr. Poseta dvorcu Šenbrun..." : "z.B. Schloss Schönbrunn besuchen...")}
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 className="sm:col-span-2 p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
@@ -8806,16 +8822,16 @@
                 onChange={e => setAssignedTo(e.target.value)}
                 className="p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs"
               >
-                <option value="Oboje">Oboje (Gemeinsam)</option>
+                <option value="Oboje">{isSr ? "Oboje (Zajedno)" : "Beide (Gemeinsam)"}</option>
                 <option value="Radoica">Radoica 🇷🇸</option>
-                <option value="Malak">Malak 🇩🇪</option>
+                <option value="Malak">Malak 🇨🇭</option>
               </select>
             </div>
 
             <div className="flex items-center justify-between pt-1">
               <input 
                 type="text"
-                placeholder="Rok / datum (opciono)..."
+                placeholder={isSr ? "Rok / datum (opciono)..." : "Frist / Datum (optional)..."}
                 value={dueDate}
                 onChange={e => setDueDate(e.target.value)}
                 className="p-2 bg-stone-50 rounded-xl border border-stone-200 text-xs w-48"
@@ -8824,18 +8840,24 @@
                 type="submit"
                 className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white font-semibold rounded-xl text-xs transition shadow-xs"
               >
-                Dodaj stavku ✓
+                {isSr ? "Dodaj stavku ✓" : "Hinzufügen ✓"}
               </button>
             </div>
           </form>
 
           {filtered.length === 0 ? (
             <div className="bg-white rounded-3xl border border-rose-100 p-8 text-center space-y-2">
-              <h4 className="text-sm font-bold text-stone-800">Lista je trenutno prazna</h4>
+              <h4 className="text-sm font-bold text-stone-800">
+                {isSr ? "Lista je trenutno prazna" : "Die Liste ist momentan leer"}
+              </h4>
               <p className="text-xs text-stone-400 max-w-xs mx-auto">
                 {tab === 'daily' 
-                  ? "Svi zadaci su završeni. Dodajte novi zadatak koji treba rešiti pre sledećeg susreta."
-                  : "Bucket lista je spremna za vaše nove zajedničke želje i planove."}
+                  ? (isSr
+                      ? "Svi zadaci su završeni. Dodajte novi zadatak koji treba rešiti pre sledećeg susreta."
+                      : "Alle Aufgaben erledigt! Fügt eine neue Aufgabe vor eurem nächsten Wiedersehen hinzu.")
+                  : (isSr
+                      ? "Bucket lista je spremna za vaše nove zajedničke želje i planove."
+                      : "Die Bucket List ist bereit für eure gemeinsamen Wünsche und Pläne.")}
               </p>
             </div>
           ) : (
@@ -8855,11 +8877,11 @@
                         {t.title}
                       </span>
                       <span className="text-[10px] text-stone-400">
-                        {t.dueDate} • Dodeljeno: <strong>{t.assignedTo}</strong>
+                        {t.dueDate} • {isSr ? "Dodeljeno:" : "Für:"} <strong>{t.assignedTo === "Oboje" ? (isSr ? "Oboje" : "Beide") : t.assignedTo}</strong>
                       </span>
                     </div>
                   </div>
-                  <span className="text-[10px] text-stone-400">Od: {t.createdBy}</span>
+                  <span className="text-[10px] text-stone-400">{isSr ? "Od:" : "Von:"} {t.createdBy}</span>
                 </div>
               ))}
             </div>
@@ -8869,7 +8891,7 @@
     }
 
     // =========================================================================
-    // 4. BOOK CLUB (PRESERVED)
+    // 4. BOOK CLUB (PRESERVED & LOCALIZED)
     // =========================================================================
     function BookClubView({ books, setBooks, isSr, isRadoica }) {
       const [title, setTitle] = useState("");
@@ -8883,7 +8905,7 @@
         const book = {
           id: "bk-" + Date.now(),
           title: title.trim(),
-          author: author.trim() || "Nepoznat autor",
+          author: author.trim() || (isSr ? "Nepoznat autor" : "Unbekannter Autor"),
           status,
           rating: 5,
           addedBy: isRadoica ? "Radoica" : "Malak",
@@ -8895,55 +8917,85 @@
         setAuthor("");
       };
 
+      const formatStatus = (st) => {
+        if (st === "Want to Read") return isSr ? "Želimo da pročitamo" : "Wollen wir lesen";
+        if (st === "Currently Reading") return isSr ? "Trenutno čitamo" : "Lesen wir gerade";
+        if (st === "Finished") return isSr ? "Pročitano" : "Gelesen";
+        return st;
+      };
+
       return (
         <div className="space-y-4">
           <form onSubmit={handleAdd} className="bg-white p-4 rounded-3xl border border-rose-100 shadow-2xs space-y-2 text-xs">
-            <span className="font-bold text-stone-800 block">+ Predloži novu knjigu:</span>
+            <span className="font-bold text-stone-800 block">
+              {isSr ? "+ Predloži novu knjigu:" : "+ Neues Buch vorschlagen:"}
+            </span>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <input type="text" required placeholder="Naslov knjige..." value={title} onChange={e => setTitle(e.target.value)} className="p-2.5 bg-stone-50 rounded-xl border text-xs" />
-              <input type="text" placeholder="Autor..." value={author} onChange={e => setAuthor(e.target.value)} className="p-2.5 bg-stone-50 rounded-xl border text-xs" />
+              <input type="text" required placeholder={isSr ? "Naslov knjige..." : "Buchtitel..."} value={title} onChange={e => setTitle(e.target.value)} className="p-2.5 bg-stone-50 rounded-xl border text-xs" />
+              <input type="text" placeholder={isSr ? "Autor..." : "Autor..."} value={author} onChange={e => setAuthor(e.target.value)} className="p-2.5 bg-stone-50 rounded-xl border text-xs" />
               <select value={status} onChange={e => setStatus(e.target.value)} className="p-2.5 bg-stone-50 rounded-xl border text-xs">
-                <option value="Want to Read">Želimo da pročitamo</option>
-                <option value="Currently Reading">Trenutno čitamo</option>
-                <option value="Finished">Pročitano</option>
+                <option value="Want to Read">{isSr ? "Želimo da pročitamo" : "Wollen wir lesen"}</option>
+                <option value="Currently Reading">{isSr ? "Trenutno čitamo" : "Lesen wir gerade"}</option>
+                <option value="Finished">{isSr ? "Pročitano" : "Gelesen"}</option>
               </select>
             </div>
             <div className="flex justify-end pt-1">
               <button type="submit" className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-xl font-semibold text-xs shadow-xs">
-                Dodaj knjigu ✓
+                {isSr ? "Dodaj knjigu ✓" : "Buch hinzufügen ✓"}
               </button>
             </div>
           </form>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {books.map(b => (
-              <div key={b.id} className="bg-white p-4 rounded-2xl border border-rose-100 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-rose-50 text-rose-700">{b.status}</span>
-                  <span className="text-[10px] text-stone-400">Dodao/la: {b.addedBy}</span>
+            {books.map(b => {
+              const displayQuote = (!isSr && b.quoteDe) ? b.quoteDe : b.quote;
+              const displayThoughts = (!isSr && b.thoughtsDe) ? b.thoughtsDe : b.thoughts;
+              return (
+                <div key={b.id} className="bg-white p-4 rounded-2xl border border-rose-100 shadow-2xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-rose-50 text-rose-700">
+                      {formatStatus(b.status)}
+                    </span>
+                    <span className="text-[10px] text-stone-400">
+                      {isSr ? "Dodao/la:" : "Von:"} {b.addedBy}
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-stone-900 text-sm">{b.title}</h4>
+                  <p className="text-xs text-stone-500">{b.author}</p>
+                  {displayQuote && (
+                    <p className="text-[11px] italic bg-rose-50/40 p-2.5 rounded-xl text-stone-600 border border-rose-100/50">
+                      "{displayQuote}"
+                    </p>
+                  )}
+                  {displayThoughts && (
+                    <p className="text-[11px] text-stone-500">
+                      💭 {displayThoughts}
+                    </p>
+                  )}
                 </div>
-                <h4 className="font-bold text-stone-900 text-sm">{b.title}</h4>
-                <p className="text-xs text-stone-500">{b.author}</p>
-                {b.quote && <p className="text-[11px] italic bg-rose-50/40 p-2.5 rounded-xl text-stone-600 border border-rose-100/50">"{b.quote}"</p>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       );
     }
 
     // =========================================================================
-    // 5. MEMORIES GALLERY (PRESERVED WITH 47 PHOTOS)
+    // 5. MEMORIES GALLERY (PRESERVED WITH 47 PHOTOS & LOCALIZED)
     // =========================================================================
-    function MemoriesView() {
+    function MemoriesView({ isSr = true }) {
       const [selected, setSelected] = useState(null);
       const photos = Array.from({ length: 47 }, (_, i) => `images/photo_${String(i + 1).padStart(2, '0')}.jpg`);
 
       return (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-stone-800">Zajedničke uspomene ({photos.length} fotografija)</span>
-            <span className="text-xs text-rose-500 italic">❤️ Svaki trenutak zajedno</span>
+            <span className="text-xs font-bold text-stone-800">
+              {isSr ? `Zajedničke uspomene (${photos.length} fotografija)` : `Gemeinsame Erinnerungen (${photos.length} Fotos)`}
+            </span>
+            <span className="text-xs text-rose-500 italic">
+              {isSr ? "❤️ Svaki trenutak zajedno" : "❤️ Jeder Moment zusammen"}
+            </span>
           </div>
 
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
@@ -8953,7 +9005,7 @@
                 onClick={() => setSelected(src)} 
                 className="aspect-square rounded-2xl overflow-hidden cursor-pointer border border-rose-100 hover:opacity-90 transition transform hover:scale-[1.02]"
               >
-                <img src={src} className="w-full h-full object-cover" loading="lazy" alt={`Uspomena ${i+1}`} />
+                <img src={src} className="w-full h-full object-cover" loading="lazy" alt={isSr ? `Uspomena ${i+1}` : `Erinnerung ${i+1}`} />
               </div>
             ))}
           </div>
@@ -8963,7 +9015,7 @@
               <div className="max-w-md w-full text-center" onClick={e => e.stopPropagation()}>
                 <img src={selected} className="w-full max-h-[75vh] object-contain rounded-3xl shadow-2xl border border-white/10" />
                 <button onClick={() => setSelected(null)} className="mt-3 px-4 py-1.5 bg-white text-stone-900 rounded-xl text-xs font-semibold shadow-md">
-                  Zatvori ✕
+                  {isSr ? "Zatvori ✕" : "Schliessen ✕"}
                 </button>
               </div>
             </div>
@@ -8976,7 +9028,7 @@
     // MODALS: EDIT REUNION & SYNC
     // =========================================================================
     function EditReunionModal({ reunion, isSr, onClose, onSave }) {
-      const [titleSr, setTitleSr] = useState(reunion.titleSr);
+      const [titleSr, setTitleSr] = useState(isSr ? reunion.titleSr : reunion.titleDe);
       const [location, setLocation] = useState(reunion.location);
       const [date, setDate] = useState(reunion.date.split("T")[0]);
 
@@ -8988,23 +9040,29 @@
       return (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-3 text-xs border border-rose-100 shadow-xl">
-            <h3 className="font-bold text-stone-900 text-sm">Podesi sledeći susret</h3>
+            <h3 className="font-bold text-stone-900 text-sm">
+              {isSr ? "Podesi sledeći susret" : "Nächstes Wiedersehen planen"}
+            </h3>
             <form onSubmit={handleSubmit} className="space-y-2">
               <div>
-                <label className="block text-stone-600 mb-1">Naziv:</label>
+                <label className="block text-stone-600 mb-1">{isSr ? "Naziv:" : "Titel:"}</label>
                 <input type="text" required value={titleSr} onChange={e => setTitleSr(e.target.value)} className="w-full p-2.5 border rounded-xl" />
               </div>
               <div>
-                <label className="block text-stone-600 mb-1">Lokacija:</label>
+                <label className="block text-stone-600 mb-1">{isSr ? "Lokacija:" : "Ort:"}</label>
                 <input type="text" required value={location} onChange={e => setLocation(e.target.value)} className="w-full p-2.5 border rounded-xl" />
               </div>
               <div>
-                <label className="block text-stone-600 mb-1">Datum:</label>
+                <label className="block text-stone-600 mb-1">{isSr ? "Datum:" : "Datum:"}</label>
                 <input type="date" required value={date} onChange={e => setDate(e.target.value)} className="w-full p-2.5 border rounded-xl" />
               </div>
               <div className="flex justify-end space-x-2 pt-2">
-                <button type="button" onClick={onClose} className="px-3 py-1.5 text-stone-500">Otkaži</button>
-                <button type="submit" className="px-4 py-1.5 bg-rose-700 text-white rounded-xl font-semibold shadow-xs">Sačuvaj</button>
+                <button type="button" onClick={onClose} className="px-3 py-1.5 text-stone-500">
+                  {isSr ? "Otkaži" : "Abbrechen"}
+                </button>
+                <button type="submit" className="px-4 py-1.5 bg-rose-700 text-white rounded-xl font-semibold shadow-xs">
+                  {isSr ? "Sačuvaj" : "Speichern"}
+                </button>
               </div>
             </form>
           </div>
@@ -9021,13 +9079,13 @@
       };
 
       const handlePaste = () => {
-        const inp = prompt("Zalepi sinhronizacioni kod ovde:");
+        const inp = prompt(isSr ? "Zalepi sinhronizacioni kod ovde:" : "Synchronisationscode hier einfügen:");
         if (inp) {
           try {
             const d = JSON.parse(decodeURIComponent(escape(atob(inp.trim()))));
             onImport(d);
           } catch (e) {
-            alert("Nevažeći kod.");
+            alert(isSr ? "Nevažeći kod." : "Ungültiger Code.");
           }
         }
       };
@@ -9035,14 +9093,22 @@
       return (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-3 text-xs border border-rose-100 shadow-xl">
-            <h3 className="font-bold text-stone-900 text-sm">Sinhronizacija telefona</h3>
+            <h3 className="font-bold text-stone-900 text-sm">
+              {isSr ? "Sinhronizacija telefona" : "Handy-Synchronisation"}
+            </h3>
             <textarea readOnly value={code} rows="3" className="w-full p-2 bg-stone-100 rounded-xl font-mono text-[10px] select-all border" />
             <div className="flex items-center justify-between">
-              <button onClick={handleCopy} className="text-rose-600 font-semibold hover:underline">Kopiraj kod</button>
-              <button onClick={handlePaste} className="text-stone-700 font-semibold hover:underline">Uvezi kod</button>
+              <button onClick={handleCopy} className="text-rose-600 font-semibold hover:underline">
+                {isSr ? "Kopiraj kod" : "Code kopieren"}
+              </button>
+              <button onClick={handlePaste} className="text-stone-700 font-semibold hover:underline">
+                {isSr ? "Uvezi kod" : "Code importieren"}
+              </button>
             </div>
             <div className="flex justify-end pt-1">
-              <button onClick={onClose} className="px-3 py-1.5 text-stone-500">Zatvori</button>
+              <button onClick={onClose} className="px-3 py-1.5 text-stone-500">
+                {isSr ? "Zatvori" : "Schliessen"}
+              </button>
             </div>
           </div>
         </div>
@@ -9069,7 +9135,16 @@
 
       const [books, setBooks] = useState(() => {
         const s = localStorage.getItem("pro_couple_books");
-        return s ? JSON.parse(s) : SEED_BOOKS;
+        if (!s) return SEED_BOOKS;
+        try {
+          const parsed = JSON.parse(s);
+          return parsed.map(b => {
+            const seed = SEED_BOOKS.find(sb => sb.id === b.id);
+            return seed ? { ...seed, ...b, quoteDe: b.quoteDe || seed.quoteDe, thoughtsDe: b.thoughtsDe || seed.thoughtsDe } : b;
+          });
+        } catch (e) {
+          return SEED_BOOKS;
+        }
       });
 
       const [reunion, setReunion] = useState(() => {
@@ -9079,7 +9154,13 @@
 
       const [loveNote, setLoveNote] = useState(() => {
         const s = localStorage.getItem("pro_couple_lovenote");
-        return s ? JSON.parse(s) : SEED_LOVE_NOTE;
+        if (!s) return SEED_LOVE_NOTE;
+        try {
+          const parsed = JSON.parse(s);
+          return { ...SEED_LOVE_NOTE, ...parsed, updatedAtDe: parsed.updatedAtDe || SEED_LOVE_NOTE.updatedAtDe };
+        } catch (e) {
+          return SEED_LOVE_NOTE;
+        }
       });
 
       const todayStr = new Date().toISOString().split("T")[0];
@@ -9197,7 +9278,7 @@
                 <button 
                   onClick={toggleUser}
                   className="flex items-center space-x-1.5 bg-white hover:bg-rose-50 border border-rose-100 pl-1.5 pr-2.5 py-1 rounded-xl transition text-xs font-bold text-stone-800 shadow-2xs"
-                  title="Promeni aktivni profil"
+                  title={isSr ? "Promeni aktivni profil" : "Aktives Profil wechseln"}
                 >
                   <img 
                     src={isRadoica ? "images/photo_03.jpg" : "images/photo_04.jpg"} 
@@ -9210,7 +9291,7 @@
                 <button 
                   onClick={() => setIsSyncOpen(true)}
                   className="p-1.5 rounded-xl hover:bg-rose-50 border border-rose-100 text-stone-500 transition"
-                  title="Sinhronizacija telefona"
+                  title={isSr ? "Sinhronizacija telefona" : "Handy-Synchronisation"}
                 >
                   📱
                 </button>
@@ -9314,7 +9395,7 @@
             )}
 
             {activeTab === "memories" && (
-              <MemoriesView />
+              <MemoriesView isSr={isSr} />
             )}
 
           </main>
