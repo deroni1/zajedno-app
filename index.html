@@ -5631,38 +5631,198 @@
     }
 
     // =========================================================================
-    // VISUAL PHONETIC PILL COMPONENT (Zero Robotic Audio)
+    // VISUAL PHONETIC PILL & INTERACTIVE SPELLING GUIDE (Zero Robotic Audio)
     // =========================================================================
-    function PronunciationPill({ pron, swissChip, compact, onChipClick, isSr = true }) {
+    function localizeSwissChip(chip, isSr) {
+      if (!chip) return "";
+      if (chip.includes("none, standard")) {
+        return isSr ? "1 slovo = 1 glas (čisto fonetski)" : "1 Buchstabe = 1 Laut (100% lautgetreu)";
+      }
+      if (isSr) {
+        return chip
+          .replace("Swiss 'sch' like Schoggi", "Švajc. 'sch' kao Schoggi")
+          .replace("Swiss 'ch' like Chuchichäschtli", "Švajc. 'ch' kao Chuchichäschtli")
+          .replace("soft 'dj' like 'schedule'", "meko 'đ' (Anđeo)")
+          .replace("soft 'ciao' / 'Züri'", "meko 'ć' kao ciao / Züri")
+          .replace("French 'j' in 'bonjour'", "francusko 'j' u bonjour")
+          .replace("always 'ts' like Zürich", "uvek 'ts' kao Zürich")
+          .replace("rolled 'r'", "kotrljajuće 'r'");
+      } else {
+        return chip
+          .replace("Swiss 'sch' like Schoggi", "Schweizer 'sch' wie Schoggi")
+          .replace("Swiss 'ch' like Chuchichäschtli", "wie 'tsch' in Tschüss")
+          .replace("soft 'dj' like 'schedule'", "weiches 'dj' (Anđeo)")
+          .replace("soft 'ciao' / 'Züri'", "weiches 'ć' wie ciao / Züri")
+          .replace("French 'j' in 'bonjour'", "franz. 'j' wie bonjour")
+          .replace("always 'ts' like Zürich", "immer 'ts' wie Zürich")
+          .replace("rolled 'r'", "gerolltes 'r'");
+      }
+    }
+
+    function buildSpellingGuide(word, isSr) {
+      if (!word) return [];
+      const cleanWord = word.replace(/[!?.,"]/g, "").trim();
+      const tokens = [];
+      let i = 0;
+      const digraphs = ["dž", "lj", "nj", "sch", "ch", "ei", "ie", "eu", "äu"];
+      while (i < cleanWord.length) {
+        const ch = cleanWord[i];
+        if (ch === " ") {
+          tokens.push({ char: "•", guide: isSr ? "pauza" : "Pause", isSpace: true });
+          i++;
+          continue;
+        }
+        const rem = cleanWord.slice(i).toLowerCase();
+        let matchedDigraph = null;
+        for (const dg of digraphs) {
+          if (rem.startsWith(dg)) {
+            matchedDigraph = cleanWord.slice(i, i + dg.length);
+            break;
+          }
+        }
+        const piece = matchedDigraph || cleanWord[i];
+        const lower = piece.toLowerCase();
+        const mapDe = {
+          "č": "tsch (Tschüss)",
+          "ć": "weiches tj (ciao)",
+          "š": "sch (Schoggi)",
+          "ž": "weiches j (bonjour)",
+          "đ": "weiches dj",
+          "dž": "dsch (Jeans)",
+          "lj": "lj (famiglia)",
+          "nj": "nj (gnocchi)",
+          "c": "ts (Zürich!)",
+          "z": "weiches s / ts",
+          "j": "j (wie ja)",
+          "r": "gerolltes R",
+          "v": "w (Wasser)",
+          "h": "hauchiges ch/h",
+          "s": "scharfes s",
+          "ä": "offenes ä",
+          "ö": "ö (rund)",
+          "ü": "ü (spitz)",
+          "ß": "scharfes ss",
+          "sch": "sch",
+          "ch": "ch",
+          "ei": "ai (mein)",
+          "ie": "langes i",
+          "eu": "oi (heute)",
+          "äu": "oi",
+          "a": "a", "e": "e", "i": "i", "o": "o", "u": "u"
+        };
+        const mapSr = {
+          "č": "tvrdo Č",
+          "ć": "meko Ć",
+          "š": "Š (sch)",
+          "ž": "Ž (bonjour)",
+          "đ": "meko Đ",
+          "dž": "tvrdo Dž",
+          "lj": "spojeno Lj",
+          "nj": "spojeno Nj",
+          "c": "C (ts)",
+          "z": "Z (nem: ts)",
+          "j": "J (ja)",
+          "r": "kotrljajuće R",
+          "v": "V (nem: F)",
+          "h": "H",
+          "ä": "otvoreno E",
+          "ö": "zaobljeno Ö",
+          "ü": "zaobljeno Ü",
+          "ß": "oštro SS",
+          "sch": "čita se Š",
+          "ch": "meko/tvrdo H",
+          "ei": "čita se AJ",
+          "ie": "dugo II",
+          "eu": "čita se OJ",
+          "äu": "čita se OJ",
+          "a": "A", "e": "E", "i": "I", "o": "O", "u": "U"
+        };
+        const guide = (isSr ? mapSr[lower] : mapDe[lower]) || piece.toUpperCase();
+        const isSpecial = Boolean(mapDe[lower] && !["a","e","i","o","u"].includes(lower));
+        tokens.push({ char: piece, guide, isSpecial });
+        i += piece.length;
+      }
+      return tokens;
+    }
+
+    function PronunciationPill({ pron, swissChip, compact, onChipClick, isSr = true, word = "" }) {
+      const [showSpell, setShowSpell] = useState(false);
       if (!pron) return null;
       const parts = pron.split(" · ");
+      const spellTokens = useMemo(() => buildSpellingGuide(word, isSr), [word, isSr]);
+      const localizedChip = localizeSwissChip(swissChip, isSr);
+
+      const handleToggleSpell = (e) => {
+        e.stopPropagation();
+        setShowSpell(prev => !prev);
+        if (onChipClick) onChipClick(e);
+      };
 
       return (
-        <div className={`flex flex-wrap items-center gap-1.5 ${compact ? 'text-[11px]' : 'text-xs'}`}>
-          <div className="flex flex-wrap items-center bg-rose-50/90 px-2 py-0.5 rounded-lg border border-rose-100/80 gap-1 font-mono">
-            {parts.map((p, idx) => {
-              const isStressed = p.startsWith("[") && p.endsWith("]");
-              const clean = isStressed ? p.slice(1, -1) : p;
-              return (
-                <React.Fragment key={idx}>
-                  {idx > 0 && <span className="text-rose-300 font-bold select-none">·</span>}
-                  <span className={isStressed ? "bg-rose-900 text-white font-extrabold px-1.5 py-0.2 rounded shadow-2xs text-[11px] tracking-wider" : "text-stone-700 font-medium"}>
-                    {clean}
-                  </span>
-                </React.Fragment>
-              );
-            })}
+        <div className="space-y-1.5" onClick={e => e.stopPropagation()}>
+          <div className={`flex flex-wrap items-center gap-1.5 ${compact ? 'text-[11px]' : 'text-xs'}`}>
+            <div className="flex flex-wrap items-center bg-rose-50/90 px-2 py-0.5 rounded-lg border border-rose-100/80 gap-1 font-mono">
+              {parts.map((p, idx) => {
+                const isStressed = p.startsWith("[") && p.endsWith("]");
+                const clean = isStressed ? p.slice(1, -1) : p;
+                return (
+                  <React.Fragment key={idx}>
+                    {idx > 0 && <span className="text-rose-300 font-bold select-none">·</span>}
+                    <span className={isStressed ? "bg-rose-900 text-white font-extrabold px-1.5 py-0.2 rounded shadow-2xs text-[11px] tracking-wider" : "text-stone-700 font-medium"}>
+                      {clean}
+                    </span>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+
+            {word && (
+              <button
+                type="button"
+                onClick={handleToggleSpell}
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 transition ${showSpell ? 'bg-rose-900 text-white border-rose-900' : 'bg-white hover:bg-rose-50 text-rose-800 border-rose-200'}`}
+                title={isSr ? "Prikaži slovo po slovo (Spell)" : "Wort buchstabieren (Spell)"}
+              >
+                <span>🔤</span>
+                <span>{isSr ? "Slovo po slovo" : "Buchstabieren"}</span>
+              </button>
+            )}
+
+            {localizedChip && (
+              <button 
+                type="button"
+                onClick={handleToggleSpell}
+                className="text-[10px] font-semibold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 px-2 py-0.5 rounded-md flex items-center gap-1 transition"
+                title={isSr ? "Klikni za švajcarski zvučni savet" : "Schweizer Aussprache-Tipp"}
+              >
+                <span>🇨🇭</span>
+                <span className="truncate max-w-[160px] sm:max-w-none">{localizedChip}</span>
+              </button>
+            )}
           </div>
-          {swissChip && (
-            <button 
-              type="button"
-              onClick={onChipClick}
-              className="text-[10px] font-semibold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 px-2 py-0.5 rounded-md flex items-center gap-1 transition"
-              title={isSr ? "Klikni za švajcarski zvučni savet" : "Schweizer Aussprache-Tipp"}
-            >
-              <span>🇨🇭</span>
-              <span className="truncate max-w-[150px] sm:max-w-none">{swissChip}</span>
-            </button>
+
+          {showSpell && spellTokens.length > 0 && (
+            <div className="bg-white/95 p-2.5 rounded-xl border border-rose-200/90 shadow-2xs space-y-1.5 text-left animate-in fade-in">
+              <div className="flex items-center justify-between text-[10px] font-bold text-stone-500">
+                <span>{isSr ? "🔤 Kako se čita svako slovo:" : "🔤 Buchstabe für Buchstabe aussprechen:"}</span>
+                <span className="text-rose-700 font-mono">{word}</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {spellTokens.map((t, idx) =>
+                  t.isSpace ? (
+                    <span key={idx} className="px-1 self-center text-stone-300 font-bold">•</span>
+                  ) : (
+                    <div
+                      key={idx}
+                      className={`px-1.5 py-1 rounded-lg border text-center min-w-[34px] ${t.isSpecial ? 'bg-amber-50/90 border-amber-300 text-amber-950' : 'bg-stone-50 border-stone-200 text-stone-800'}`}
+                    >
+                      <span className="block font-black text-xs leading-none">{t.char}</span>
+                      <span className="block text-[9px] text-stone-500 font-medium mt-0.5 leading-tight">{t.guide}</span>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
           )}
         </div>
       );
@@ -5680,7 +5840,7 @@
               <span className="font-bold text-stone-900 text-sm">{selectedWord.word}</span>
               <span className="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded font-semibold">{selectedWord.role}</span>
             </div>
-            <PronunciationPill pron={selectedWord.pron} swissChip={selectedWord.tip} compact isSr={isSr} />
+            <PronunciationPill word={selectedWord.word} pron={selectedWord.pron} swissChip={selectedWord.tip} compact isSr={isSr} />
             <p className="text-[11px] text-stone-600">{selectedWord.meaning}</p>
           </div>
           <div className="flex items-center space-x-1.5">
@@ -5856,7 +6016,7 @@
                 {greeting}
               </h2>
               <div className="mt-1.5">
-                <PronunciationPill pron={greetingPron} compact isSr={isSr} />
+                <PronunciationPill word={greeting} pron={greetingPron} compact isSr={isSr} />
               </div>
             </div>
 
@@ -6053,7 +6213,7 @@
 
                       {isRevealed ? (
                         <div className="mt-1 space-y-1">
-                          <PronunciationPill pron={isTargetSr ? w.srPron : w.dePron} swissChip={w.swissChip} compact isSr={isSr} />
+                          <PronunciationPill word={isTargetSr ? w.sr : w.de} pron={isTargetSr ? w.srPron : w.dePron} swissChip={w.swissChip} compact isSr={isSr} />
                           <p className="text-[11px] text-stone-500 italic mt-0.5">
                             "{isTargetSr ? w.exSr : w.exDe}"
                           </p>
@@ -6106,7 +6266,7 @@
               <p className="text-sm font-bold text-stone-900 leading-snug">
                 "{todayRomanticSentence}"
               </p>
-              <PronunciationPill pron={todayRomanticPron} compact isSr={isSr} />
+              <PronunciationPill word={todayRomanticSentence} pron={todayRomanticPron} compact isSr={isSr} />
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
@@ -6309,11 +6469,17 @@
               <h2 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
                 {isTargetSr ? (isFlipped ? currentCard.sr : currentCard.de) : (isFlipped ? currentCard.de : currentCard.sr)}
               </h2>
+              {isFlipped && isTargetSr && currentCard.srCyr && (
+                <span className="text-xs font-semibold text-stone-400 block">
+                  {isSr ? "Ćirilica:" : "Kyrillisch:"} {currentCard.srCyr}
+                </span>
+              )}
 
               {isFlipped ? (
                 <div className="space-y-3 pt-2 animate-in fade-in zoom-in-95">
                   <div className="flex justify-center">
                     <PronunciationPill 
+                      word={isTargetSr ? currentCard.sr : currentCard.de}
                       pron={isTargetSr ? currentCard.srPron : currentCard.dePron} 
                       swissChip={currentCard.swissChip}
                       isSr={isSr}
@@ -6724,7 +6890,7 @@
                         {w.en && <div className="text-xs text-stone-500 italic">{w.en}</div>}
                       </div>
 
-                      <PronunciationPill pron={pron} swissChip={w.swissChip} compact isSr={isSr} />
+                      <PronunciationPill word={matchedText} pron={pron} swissChip={w.swissChip} compact isSr={isSr} />
 
                       {exText && (
                         <p className="text-xs text-stone-600 italic bg-white/80 p-2 rounded-xl border border-rose-100">
@@ -7448,7 +7614,7 @@
                     <div
                       key={w.id}
                       onClick={() => setFlippedWordCards(prev => ({ ...prev, [w.id]: !prev[w.id] }))}
-                      className="card-3d-wrap h-48 cursor-pointer select-none"
+                      className="card-3d-wrap h-56 cursor-pointer select-none"
                     >
                       <div className={`card-3d-inner w-full h-full relative ${isFlipped ? 'flipped' : ''}`}>
                         
@@ -7478,20 +7644,20 @@
                           </div>
                         </div>
 
-                        <div className="card-face-back absolute inset-0 bg-gradient-to-br from-rose-50/90 to-romantic-50 rounded-3xl p-4 border border-rose-200 shadow-2xs flex flex-col justify-between">
+                        <div className="card-face-back absolute inset-0 bg-gradient-to-br from-rose-50/90 to-romantic-50 rounded-3xl p-4 border border-rose-200 shadow-2xs flex flex-col justify-between overflow-y-auto">
                           <div className="flex items-center justify-between">
                             <span className="text-[10px] font-bold text-rose-800">
                               {isTargetSr ? (isSr ? "Srpski" : "Serbisch") : (isSr ? "Nemački" : "Deutsch")}
                             </span>
-                            <span className="text-[10px] text-stone-400 font-medium">{isSr ? "Preokrenuto" : "Umgedreht"}</span>
+                            <span className="text-[10px] text-stone-400 font-medium">{isTargetSr && w.srCyr ? w.srCyr : (isSr ? "Preokrenuto" : "Umgedreht")}</span>
                           </div>
 
                           <div className="text-center space-y-1.5">
-                            <span className="text-lg font-black text-rose-950 block">
+                            <span className="text-lg font-black text-rose-950 block leading-tight">
                               {isTargetSr ? w.sr : w.de}
                             </span>
                             <div className="flex justify-center">
-                              <PronunciationPill pron={isTargetSr ? w.srPron : w.dePron} swissChip={w.swissChip} compact isSr={isSr} />
+                              <PronunciationPill word={isTargetSr ? w.sr : w.de} pron={isTargetSr ? w.srPron : w.dePron} swissChip={w.swissChip} compact isSr={isSr} />
                             </div>
                             <span className="text-[11px] text-stone-600 italic block line-clamp-1">
                               "{isTargetSr ? w.exSr : w.exDe}"
