@@ -66,20 +66,43 @@
     }
     .card-3d-wrap {
       perspective: 1200px;
+      -webkit-perspective: 1200px;
     }
     .card-3d-inner {
-      transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: transform 0.6s cubic-bezier(0.2, 0.85, 0.25, 1);
       transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
+      position: relative;
     }
     .card-3d-inner.flipped {
       transform: rotateY(180deg);
+      -webkit-transform: rotateY(180deg);
     }
     .card-face-front, .card-face-back {
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
+      transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
+    }
+    .card-face-front {
+      transform: rotateY(0deg);
+      -webkit-transform: rotateY(0deg);
+      z-index: 2;
     }
     .card-face-back {
       transform: rotateY(180deg);
+      -webkit-transform: rotateY(180deg);
+      z-index: 1;
+    }
+    .card-3d-inner.flipped .card-face-front {
+      pointer-events: none;
+    }
+    .card-3d-inner.flipped .card-face-back {
+      z-index: 2;
+      pointer-events: auto;
+    }
+    .card-3d-inner:not(.flipped) .card-face-back {
+      pointer-events: none;
     }
     .no-scrollbar::-webkit-scrollbar {
       display: none;
@@ -6438,46 +6461,100 @@
 
           <div 
             onClick={handleFlip}
-            className="has-stack bg-white rounded-3xl p-6 sm:p-8 border border-rose-100/90 shadow-md min-h-[320px] flex flex-col justify-between cursor-pointer select-none transition transform active:scale-[0.99]"
+            className="has-stack card-3d-wrap min-h-[360px] sm:min-h-[380px] cursor-pointer select-none"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-stone-100 text-stone-700">
-                  {currentCard.cat}
-                </span>
-                <span className="text-[10px] text-stone-400">
-                  {isSr ? "Dodao/la:" : "Von:"} {currentCard.createdBy}
-                </span>
+            <div className={`card-3d-inner w-full min-h-[360px] sm:min-h-[380px] ${isFlipped ? 'flipped' : ''}`}>
+              
+              {/* FRONT FACE */}
+              <div className="card-face-front absolute inset-0 bg-white rounded-3xl p-6 sm:p-8 border border-rose-100/90 shadow-md flex flex-col justify-between overflow-hidden">
+                {currentCard.photo && (
+                  <div 
+                    className="absolute inset-0 opacity-[0.06] bg-cover bg-center pointer-events-none rounded-3xl"
+                    style={{ backgroundImage: `url(${currentCard.photo})` }}
+                  />
+                )}
+
+                <div className="flex items-center justify-between relative z-10">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-stone-100 text-stone-700">
+                      {currentCard.cat}
+                    </span>
+                    <span className="text-[10px] text-stone-400">
+                      {isSr ? "Dodao/la:" : "Von:"} {currentCard.createdBy}
+                    </span>
+                  </div>
+
+                  <button 
+                    onClick={handleToggleStar}
+                    className={`p-1.5 rounded-lg text-sm transition ${currentCard.starred ? 'text-amber-500 bg-amber-50' : 'text-stone-300 hover:text-stone-500'}`}
+                    title={isSr ? "Označi zvezdicom" : "Favorit"}
+                  >
+                    ★
+                  </button>
+                </div>
+
+                <div className="text-center py-6 space-y-4 relative z-10 my-auto">
+                  <span className="text-xs uppercase font-extrabold tracking-widest text-stone-400 block">
+                    {isTargetSr
+                      ? (isSr ? "Nemački original:" : "Deutsch:")
+                      : (isSr ? "Srpski original:" : "Serbisch:")}
+                  </span>
+
+                  <h2 className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight">
+                    {isTargetSr ? currentCard.de : currentCard.sr}
+                  </h2>
+
+                  <p className="text-xs text-stone-400 pt-3">
+                    {isSr
+                      ? "(Klikni na karticu ili stisni Space za 3D preokret)"
+                      : "(Tippe auf die Karte oder drücke Leertaste für 3D-Umdrehen)"}
+                  </p>
+                </div>
+
+                <div className="text-center border-t border-stone-100 pt-3 text-[11px] text-rose-600 font-semibold relative z-10 flex items-center justify-center space-x-1.5">
+                  <span className="text-sm">🎴</span>
+                  <span>{isSr ? "Dodirni za 3D preokret →" : "Tippen für 3D-Umdrehen →"}</span>
+                </div>
               </div>
 
-              <button 
-                onClick={handleToggleStar}
-                className={`p-1.5 rounded-lg text-sm transition ${currentCard.starred ? 'text-amber-500 bg-amber-50' : 'text-stone-300 hover:text-stone-500'}`}
-                title={isSr ? "Označi zvezdicom" : "Favorit"}
-              >
-                ★
-              </button>
-            </div>
+              {/* BACK FACE */}
+              <div className="card-face-back absolute inset-0 bg-gradient-to-br from-white via-rose-50/40 to-romantic-50/60 rounded-3xl p-6 sm:p-8 border border-rose-200/90 shadow-md flex flex-col justify-between overflow-hidden">
+                {currentCard.photo && (
+                  <div 
+                    className="absolute inset-0 opacity-[0.06] bg-cover bg-center pointer-events-none rounded-3xl"
+                    style={{ backgroundImage: `url(${currentCard.photo})` }}
+                  />
+                )}
 
-            <div className="text-center py-6 space-y-3">
-              <span className="text-xs uppercase font-extrabold tracking-widest text-stone-400 block">
-                {isTargetSr
-                  ? (isFlipped ? (isSr ? "Srpski prevod & izgovor:" : "Serbisch & Aussprache:") : (isSr ? "Nemački original:" : "Deutsch:"))
-                  : (isFlipped ? (isSr ? "Nemački prevod & izgovor:" : "Deutsch & Aussprache:") : (isSr ? "Srpski original:" : "Serbisch:"))}
-              </span>
+                <div className="flex items-center justify-between relative z-10">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-100 text-rose-900">
+                      {isTargetSr
+                        ? (isSr ? "Srpski prevod & izgovor:" : "Serbisch & Aussprache:")
+                        : (isSr ? "Nemački prevod & izgovor:" : "Deutsch & Aussprache:")}
+                    </span>
+                  </div>
 
-              <h2 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
-                {isTargetSr ? (isFlipped ? currentCard.sr : currentCard.de) : (isFlipped ? currentCard.de : currentCard.sr)}
-              </h2>
-              {isFlipped && isTargetSr && currentCard.srCyr && (
-                <span className="text-xs font-semibold text-stone-400 block">
-                  {isSr ? "Ćirilica:" : "Kyrillisch:"} {currentCard.srCyr}
-                </span>
-              )}
+                  <button 
+                    onClick={handleToggleStar}
+                    className={`p-1.5 rounded-lg text-sm transition ${currentCard.starred ? 'text-amber-500 bg-amber-50' : 'text-stone-300 hover:text-stone-500'}`}
+                    title={isSr ? "Označi zvezdicom" : "Favorit"}
+                  >
+                    ★
+                  </button>
+                </div>
 
-              {isFlipped ? (
-                <div className="space-y-3 pt-2 animate-in fade-in zoom-in-95">
-                  <div className="flex justify-center">
+                <div className="text-center py-2 space-y-3 relative z-10 my-auto">
+                  <h2 className="text-2xl sm:text-3xl font-black text-rose-950 tracking-tight">
+                    {isTargetSr ? currentCard.sr : currentCard.de}
+                  </h2>
+                  {isTargetSr && currentCard.srCyr && (
+                    <span className="text-xs font-semibold text-stone-500 block">
+                      {isSr ? "Ćirilica:" : "Kyrillisch:"} {currentCard.srCyr}
+                    </span>
+                  )}
+
+                  <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
                     <PronunciationPill 
                       word={isTargetSr ? currentCard.sr : currentCard.de}
                       pron={isTargetSr ? currentCard.srPron : currentCard.dePron} 
@@ -6486,7 +6563,7 @@
                     />
                   </div>
 
-                  <p className="text-xs text-stone-600 italic bg-rose-50/50 p-2.5 rounded-xl border border-rose-100 max-w-sm mx-auto">
+                  <p className="text-xs text-stone-700 italic bg-white/80 p-2.5 rounded-xl border border-rose-100 max-w-sm mx-auto shadow-2xs">
                     "{isTargetSr ? currentCard.exSr : currentCard.exDe}"
                   </p>
 
@@ -6496,19 +6573,12 @@
                     </span>
                   )}
                 </div>
-              ) : (
-                <p className="text-xs text-stone-400 pt-4">
-                  {isSr
-                    ? "(Klikni bilo gde na karticu ili stisni Space da otkriješ izgovor i prevod)"
-                    : "(Tippe irgendwo auf die Karte oder drücke Leertaste zum Aufdecken)"}
-                </p>
-              )}
-            </div>
 
-            <div className="text-center border-t border-stone-100 pt-3 text-[11px] text-stone-400">
-              {isFlipped
-                ? (isSr ? "Izaberi koliko ti je bilo lako (1–4):" : "Wie leicht war es? (1–4):")
-                : (isSr ? "🎴 Dodirni za preokret" : "🎴 Tippen zum Umdrehen")}
+                <div className="text-center border-t border-rose-100 pt-3 text-[11px] text-stone-500 font-medium relative z-10">
+                  {isSr ? "Izaberi koliko ti je bilo lako (1–4):" : "Wie leicht war es? (1–4):"}
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -7614,12 +7684,19 @@
                     <div
                       key={w.id}
                       onClick={() => setFlippedWordCards(prev => ({ ...prev, [w.id]: !prev[w.id] }))}
-                      className="card-3d-wrap h-56 cursor-pointer select-none"
+                      className="card-3d-wrap min-h-[260px] cursor-pointer select-none"
                     >
-                      <div className={`card-3d-inner w-full h-full relative ${isFlipped ? 'flipped' : ''}`}>
+                      <div className={`card-3d-inner w-full min-h-[260px] h-full ${isFlipped ? 'flipped' : ''}`}>
                         
-                        <div className="card-face-front absolute inset-0 bg-white rounded-3xl p-4 border border-rose-100 shadow-2xs flex flex-col justify-between">
-                          <div className="flex items-center justify-between">
+                        <div className="card-face-front absolute inset-0 bg-white rounded-3xl p-4 sm:p-5 border border-rose-100 shadow-2xs flex flex-col justify-between overflow-hidden">
+                          {w.photo && (
+                            <div 
+                              className="absolute inset-0 opacity-[0.05] bg-cover bg-center pointer-events-none rounded-3xl"
+                              style={{ backgroundImage: `url(${w.photo})` }}
+                            />
+                          )}
+
+                          <div className="flex items-center justify-between relative z-10">
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-stone-100 text-stone-700">
                               {w.cat}
                             </span>
@@ -7629,8 +7706,8 @@
                             </div>
                           </div>
 
-                          <div className="text-center space-y-1">
-                            <span className="text-lg font-bold text-stone-900 block">
+                          <div className="text-center space-y-1 relative z-10 my-auto py-2">
+                            <span className="text-lg sm:text-xl font-bold text-stone-900 block tracking-tight">
                               {isTargetSr ? w.de : w.sr}
                             </span>
                             <span className="text-xs text-stone-400 block">
@@ -7638,33 +7715,40 @@
                             </span>
                           </div>
 
-                          <div className="text-center text-[10px] text-stone-400 border-t border-stone-50 pt-2 flex items-center justify-between">
+                          <div className="text-center text-[10px] text-stone-400 border-t border-stone-50 pt-2 flex items-center justify-between relative z-10">
                             <span>{isSr ? "Dodao/la:" : "Von:"} {w.createdBy}</span>
-                            <span className="text-rose-600 font-semibold">{isSr ? "Otkrij izgovor →" : "Aussprache zeigen →"}</span>
+                            <span className="text-rose-600 font-semibold">{isSr ? "3D Preokret →" : "3D Umdrehen →"}</span>
                           </div>
                         </div>
 
-                        <div className="card-face-back absolute inset-0 bg-gradient-to-br from-rose-50/90 to-romantic-50 rounded-3xl p-4 border border-rose-200 shadow-2xs flex flex-col justify-between overflow-y-auto">
-                          <div className="flex items-center justify-between">
+                        <div className="card-face-back absolute inset-0 bg-gradient-to-br from-rose-50/90 to-romantic-50 rounded-3xl p-4 sm:p-5 border border-rose-200 shadow-2xs flex flex-col justify-between overflow-hidden">
+                          {w.photo && (
+                            <div 
+                              className="absolute inset-0 opacity-[0.05] bg-cover bg-center pointer-events-none rounded-3xl"
+                              style={{ backgroundImage: `url(${w.photo})` }}
+                            />
+                          )}
+
+                          <div className="flex items-center justify-between relative z-10">
                             <span className="text-[10px] font-bold text-rose-800">
                               {isTargetSr ? (isSr ? "Srpski" : "Serbisch") : (isSr ? "Nemački" : "Deutsch")}
                             </span>
                             <span className="text-[10px] text-stone-400 font-medium">{isTargetSr && w.srCyr ? w.srCyr : (isSr ? "Preokrenuto" : "Umgedreht")}</span>
                           </div>
 
-                          <div className="text-center space-y-1.5">
-                            <span className="text-lg font-black text-rose-950 block leading-tight">
+                          <div className="text-center space-y-1.5 relative z-10 my-auto py-1">
+                            <span className="text-lg sm:text-xl font-black text-rose-950 block leading-tight">
                               {isTargetSr ? w.sr : w.de}
                             </span>
-                            <div className="flex justify-center">
+                            <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
                               <PronunciationPill word={isTargetSr ? w.sr : w.de} pron={isTargetSr ? w.srPron : w.dePron} swissChip={w.swissChip} compact isSr={isSr} />
                             </div>
-                            <span className="text-[11px] text-stone-600 italic block line-clamp-1">
+                            <span className="text-[11px] text-stone-600 italic block line-clamp-2">
                               "{isTargetSr ? w.exSr : w.exDe}"
                             </span>
                           </div>
 
-                          <div className="flex items-center justify-between pt-1 border-t border-rose-200/50 text-[10px]">
+                          <div className="flex items-center justify-between pt-1 border-t border-rose-200/50 text-[10px] relative z-10">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
