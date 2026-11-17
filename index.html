@@ -5748,12 +5748,34 @@
       return tokens;
     }
 
+    function latinToCyrillic(str) {
+      if (!str) return "";
+      const map = [
+        ["Dž", "Џ"], ["DŽ", "Џ"], ["dž", "џ"],
+        ["Lj", "Љ"], ["LJ", "Љ"], ["lj", "љ"],
+        ["Nj", "Њ"], ["NJ", "Њ"], ["nj", "њ"],
+        ["A", "А"], ["B", "Б"], ["V", "В"], ["G", "Г"], ["D", "Д"], ["Đ", "Ђ"], ["E", "Е"],
+        ["Ž", "Ж"], ["Z", "З"], ["I", "И"], ["J", "Ј"], ["K", "К"], ["L", "Л"], ["M", "М"],
+        ["N", "Н"], ["O", "О"], ["P", "П"], ["R", "Р"], ["S", "С"], ["T", "Т"], ["Ć", "Ћ"],
+        ["U", "У"], ["F", "Ф"], ["H", "Х"], ["C", "Ц"], ["Č", "Ч"], ["Š", "Ш"],
+        ["a", "а"], ["b", "б"], ["v", "в"], ["g", "г"], ["d", "д"], ["đ", "ђ"], ["e", "е"],
+        ["ž", "ж"], ["z", "з"], ["i", "и"], ["j", "ј"], ["k", "к"], ["l", "л"], ["m", "м"],
+        ["n", "н"], ["o", "о"], ["p", "п"], ["r", "р"], ["s", "с"], ["t", "т"], ["ć", "ћ"],
+        ["u", "у"], ["f", "ф"], ["h", "х"], ["c", "ц"], ["č", "ч"], ["š", "ш"]
+      ];
+      let out = str;
+      for (const [lat, cyr] of map) {
+        out = out.split(lat).join(cyr);
+      }
+      return out;
+    }
+
     function PronunciationPill({ pron, swissChip, compact, onChipClick, isSr = true, word = "" }) {
       const [showSpell, setShowSpell] = useState(false);
-      if (!pron) return null;
-      const parts = pron.split(" · ");
       const spellTokens = useMemo(() => buildSpellingGuide(word, isSr), [word, isSr]);
       const localizedChip = localizeSwissChip(swissChip, isSr);
+      if (!pron && !word && !localizedChip) return null;
+      const parts = pron ? pron.split(" · ") : [];
 
       const handleToggleSpell = (e) => {
         e.stopPropagation();
@@ -5763,21 +5785,23 @@
 
       return (
         <div className="space-y-1.5" onClick={e => e.stopPropagation()}>
-          <div className={`flex flex-wrap items-center gap-1.5 ${compact ? 'text-[11px]' : 'text-xs'}`}>
-            <div className="flex flex-wrap items-center bg-rose-50/90 px-2 py-0.5 rounded-lg border border-rose-100/80 gap-1 font-mono">
-              {parts.map((p, idx) => {
-                const isStressed = p.startsWith("[") && p.endsWith("]");
-                const clean = isStressed ? p.slice(1, -1) : p;
-                return (
-                  <React.Fragment key={idx}>
-                    {idx > 0 && <span className="text-rose-300 font-bold select-none">·</span>}
-                    <span className={isStressed ? "bg-rose-900 text-white font-extrabold px-1.5 py-0.2 rounded shadow-2xs text-[11px] tracking-wider" : "text-stone-700 font-medium"}>
-                      {clean}
-                    </span>
-                  </React.Fragment>
-                );
-              })}
-            </div>
+          <div className={`flex flex-wrap items-center justify-center gap-1.5 ${compact ? 'text-[11px]' : 'text-xs'}`}>
+            {parts.length > 0 && (
+              <div className="flex flex-wrap items-center bg-rose-50/90 px-2 py-0.5 rounded-lg border border-rose-100/80 gap-1 font-mono">
+                {parts.map((p, idx) => {
+                  const isStressed = p.startsWith("[") && p.endsWith("]");
+                  const clean = isStressed ? p.slice(1, -1) : p;
+                  return (
+                    <React.Fragment key={idx}>
+                      {idx > 0 && <span className="text-rose-300 font-bold select-none">·</span>}
+                      <span className={isStressed ? "bg-rose-900 text-white font-extrabold px-1.5 py-0.2 rounded shadow-2xs text-[11px] tracking-wider" : "text-stone-700 font-medium"}>
+                        {clean}
+                      </span>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            )}
 
             {word && (
               <button
@@ -6333,7 +6357,7 @@
     // =========================================================================
     // SCREEN 2: REVIEW (REAL FSRS-4.5 SPACED REPETITION)
     // =========================================================================
-    function ReviewView({ vocabulary, setVocabulary, onCompleteMission, isSr, isRadoica, learnerTrack }) {
+    function ReviewView({ vocabulary, setVocabulary, onCompleteMission, onOpenAddCard, isSr, isRadoica, learnerTrack }) {
       const isTargetSr = learnerTrack === "sr";
       const [queueIndex, setQueueIndex] = useState(0);
       const [isFlipped, setIsFlipped] = useState(false);
@@ -6417,26 +6441,47 @@
                 ? "Tvoja memorija je osvežena uz FSRS-4.5 algoritam. Odmori se ili pređi na vežbanje dopisivanja."
                 : "Dein Gedächtnis ist mit dem FSRS-4.5-Algorithmus aufgefrischt. Mach eine Pause oder übe im Chat-Simulator."}
             </p>
-            <button 
-              onClick={() => onCompleteMission("review")}
-              className="px-5 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-semibold shadow-xs"
-            >
-              {isSr ? "Označi dnevni korak završenim ✓" : "Tagesschritt als erledigt markieren ✓"}
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button 
+                onClick={() => onCompleteMission("review")}
+                className="px-5 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-xl text-xs font-semibold shadow-xs"
+              >
+                {isSr ? "Označi dnevni korak završenim ✓" : "Tagesschritt als erledigt markieren ✓"}
+              </button>
+              {onOpenAddCard && (
+                <button
+                  onClick={onOpenAddCard}
+                  className="px-4 py-2 bg-white hover:bg-rose-50 text-rose-900 border border-rose-200 rounded-xl text-xs font-bold shadow-2xs transition"
+                >
+                  {isSr ? "＋ Dodaj karticu" : "＋ Karte hinzufügen"}
+                </button>
+              )}
+            </div>
           </div>
         );
       }
 
       return (
         <div className="space-y-4 max-w-lg mx-auto">
-          <div className="flex items-center justify-between text-xs text-stone-500 font-semibold px-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 font-semibold px-2">
             <span className="flex items-center space-x-1.5">
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
               <span>{isSr ? `FSRS Ponavljanje: ${queueIndex + 1} od ${dueQueue.length}` : `FSRS Wiederholung: ${queueIndex + 1} von ${dueQueue.length}`}</span>
             </span>
-            <span className="text-[11px] bg-rose-50 text-rose-800 border border-rose-100 px-2 py-0.5 rounded-full font-bold">
-              {isSr ? "Space = Okreni • 1–4 = Oceni" : "Space = Umdrehen • 1–4 = Bewerten"}
-            </span>
+            <div className="flex items-center space-x-2">
+              <span className="hidden sm:inline-block text-[11px] bg-rose-50 text-rose-800 border border-rose-100 px-2 py-0.5 rounded-full font-bold">
+                {isSr ? "Space = Okreni • 1–4 = Oceni" : "Space = Umdrehen • 1–4 = Bewerten"}
+              </span>
+              {onOpenAddCard && (
+                <button
+                  type="button"
+                  onClick={onOpenAddCard}
+                  className="text-[11px] bg-rose-900 hover:bg-rose-950 text-white px-2.5 py-1 rounded-xl font-bold shadow-2xs transition"
+                >
+                  {isSr ? "＋ Dodaj karticu" : "＋ Neue Karte"}
+                </button>
+              )}
+            </div>
           </div>
 
           <div 
@@ -6781,19 +6826,21 @@
           setSavedFeedback(true);
           return;
         }
+        const photoNum = String(Math.floor(Math.random() * 47) + 1).padStart(2, "0");
         const newCard = {
           id: "custom-" + Date.now(),
           sr: srText,
-          srCyr: "",
+          srCyr: latinToCyrillic(srText),
           de: deText,
           en: "",
           cat: "Everyday",
           srPron: "",
           dePron: "",
-          swissChip: isSr ? "Sačuvano iz prevodioca" : "Aus dem Übersetzer",
+          swissChip: "",
           exSr: srText,
           exDe: deText,
           notes: isSr ? "Dodato iz prevodioca" : "Vom Übersetzer gespeichert",
+          photo: `images/photo_${photoNum}.jpg`,
           createdBy: isRadoica ? "Radoica" : "Malak",
           starred: false,
           fsrsState: 0,
@@ -7070,7 +7117,7 @@
     // =========================================================================
     // SCREEN 3: LEARN (6 SUB-TABS: LESSONS, SOUNDS, ALPHABET, TRANSLATE, GRAMMAR, ALL WORDS)
     // =========================================================================
-    function LearnView({ vocabulary, setVocabulary, isSr, isRadoica, learnerTrack }) {
+    function LearnView({ vocabulary, setVocabulary, onOpenAddCard, isSr, isRadoica, learnerTrack }) {
       const [subTab, setSubTab] = useState("lessons"); // 'lessons', 'sounds', 'alphabet', 'grammar', 'words'
       const [activeLessonId, setActiveLessonId] = useState("l-1");
       const [lessonAnswers, setLessonAnswers] = useState({});
@@ -7628,13 +7675,26 @@
                     )}
                   </div>
 
-                  <button
-                    onClick={() => setOnlyStarred(!onlyStarred)}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold transition border flex items-center space-x-1.5 ${onlyStarred ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-50'}`}
-                  >
-                    <span>★</span>
-                    <span>{isSr ? "Samo označene" : "Nur Favoriten"}</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setOnlyStarred(!onlyStarred)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition border flex items-center space-x-1.5 whitespace-nowrap ${onlyStarred ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-stone-700 border-stone-200 hover:bg-stone-50'}`}
+                    >
+                      <span>★</span>
+                      <span>{isSr ? "Samo označene" : "Nur Favoriten"}</span>
+                    </button>
+
+                    {onOpenAddCard && (
+                      <button
+                        type="button"
+                        onClick={onOpenAddCard}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-900 hover:bg-rose-950 text-white shadow-xs transition flex items-center space-x-1 whitespace-nowrap"
+                      >
+                        <span>＋</span>
+                        <span>{isSr ? "Dodaj karticu" : "Neue Karte"}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
@@ -7659,6 +7719,7 @@
                 {filteredWords.map(w => {
                   const isFlipped = flippedWordCards[w.id];
                   const isLearned = isRadoica ? w.learnedRadoica : w.learnedMalak;
+                  const isCustom = w.id && String(w.id).startsWith("custom-");
 
                   return (
                     <div
@@ -7677,12 +7738,34 @@
                           )}
 
                           <div className="flex items-center justify-between relative z-10">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-stone-100 text-stone-700">
-                              {w.cat}
-                            </span>
+                            <div className="flex items-center space-x-1">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-stone-100 text-stone-700">
+                                {w.cat}
+                              </span>
+                              {isCustom && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-100">
+                                  ✨ {isSr ? "Naša" : "Eigene"}
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center space-x-1.5">
                               {isLearned && <span className="text-[10px] text-emerald-600 font-bold">✓</span>}
                               {w.starred && <span className="text-amber-500 text-xs">★</span>}
+                              {isCustom && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(isSr ? `Obrisati karticu "${w.sr} / ${w.de}"?` : `Karte "${w.sr} / ${w.de}" löschen?`)) {
+                                      setVocabulary(prev => prev.filter(item => item.id !== w.id));
+                                    }
+                                  }}
+                                  className="text-stone-300 hover:text-rose-600 text-xs font-bold p-0.5 leading-none transition"
+                                  title={isSr ? "Obriši karticu" : "Karte löschen"}
+                                >
+                                  ✕
+                                </button>
+                              )}
                             </div>
                           </div>
 
@@ -8627,15 +8710,215 @@
     }
 
     // =========================================================================
+    // ADD CUSTOM FLASHCARD MODAL (BILINGUAL + AUTO CYRILLIC + CLOUD SYNCED)
+    // =========================================================================
+    function AddCardModal({ isSr, isRadoica, onClose, onAddCard }) {
+      const [sr, setSr] = useState("");
+      const [de, setDe] = useState("");
+      const [cat, setCat] = useState("Everyday");
+      const [exSr, setExSr] = useState("");
+      const [exDe, setExDe] = useState("");
+      const [notes, setNotes] = useState("");
+
+      const categories = [
+        "Everyday",
+        "Romance",
+        "Food & Tea",
+        "Travel & Trips",
+        "Feelings",
+        "Slang & Lore",
+        "Croatia Memories",
+        "Grammar & Questions"
+      ];
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!sr.trim() || !de.trim()) return;
+        const photoNum = String(Math.floor(Math.random() * 47) + 1).padStart(2, "0");
+        const newCard = {
+          id: "custom-" + Date.now(),
+          sr: sr.trim(),
+          srCyr: latinToCyrillic(sr.trim()),
+          de: de.trim(),
+          en: "",
+          cat,
+          srPron: "",
+          dePron: "",
+          swissChip: "",
+          exSr: exSr.trim() || sr.trim(),
+          exDe: exDe.trim() || de.trim(),
+          notes: notes.trim(),
+          photo: `images/photo_${photoNum}.jpg`,
+          createdBy: isRadoica ? "Radoica" : "Malak",
+          starred: false,
+          fsrsState: 0,
+          fsrsStability: 1.0,
+          fsrsDifficulty: 5.0,
+          fsrsReps: 0,
+          fsrsLapses: 0,
+          fsrsDue: new Date().toISOString(),
+          learnedRadoica: false,
+          learnedMalak: false
+        };
+        onAddCard(newCard);
+        if (window.confetti) {
+          window.confetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
+        }
+        onClose();
+      };
+
+      return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4" onClick={onClose}>
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 text-xs border border-rose-100 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-rose-50 pb-3">
+              <div>
+                <h3 className="font-extrabold text-stone-900 text-sm flex items-center space-x-1.5">
+                  <span>🎴</span>
+                  <span>{isSr ? "Dodaj novu fleš karticu" : "Neue Karteikarte hinzufügen"}</span>
+                </h3>
+                <p className="text-[11px] text-stone-400 mt-0.5">
+                  {isSr ? "Odmah se sinhronizuje na oba telefona ☁️" : "Wird sofort auf beiden Handys synchronisiert ☁️"}
+                </p>
+              </div>
+              <button type="button" onClick={onClose} className="p-1 text-stone-400 hover:text-stone-700 text-sm font-bold">✕</button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-stone-700">🇷🇸 {isSr ? "Srpski (obavezno)" : "Serbisch (erforderlich)"}</label>
+                  <div className="flex gap-1">
+                    {["č", "ć", "ž", "š", "đ"].map(ch => (
+                      <button
+                        key={ch}
+                        type="button"
+                        onClick={() => setSr(prev => prev + ch)}
+                        className="px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded font-bold text-[10px] border border-rose-100"
+                      >
+                        {ch}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={sr}
+                  onChange={e => setSr(e.target.value)}
+                  placeholder={isSr ? "npr. Nedostaješ mi" : "z.B. Nedostaješ mi"}
+                  className="w-full p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-stone-700">🇩🇪 {isSr ? "Nemački (obavezno)" : "Deutsch (erforderlich)"}</label>
+                  <div className="flex gap-1">
+                    {["ä", "ö", "ü", "ß"].map(ch => (
+                      <button
+                        key={ch}
+                        type="button"
+                        onClick={() => setDe(prev => prev + ch)}
+                        className="px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded font-bold text-[10px] border border-rose-100"
+                      >
+                        {ch}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={de}
+                  onChange={e => setDe(e.target.value)}
+                  placeholder={isSr ? "npr. Du fehlst mir" : "z.B. Du fehlst mir"}
+                  className="w-full p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-stone-700 block">{isSr ? "Kategorija" : "Kategorie"}</label>
+                <select
+                  value={cat}
+                  onChange={e => setCat(e.target.value)}
+                  className="w-full p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                >
+                  {categories.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="font-bold text-stone-600 block text-[11px]">{isSr ? "Primer — Srpski (opciono)" : "Beispiel — Serbisch (optional)"}</label>
+                  <input
+                    type="text"
+                    value={exSr}
+                    onChange={e => setExSr(e.target.value)}
+                    placeholder={isSr ? "Rečenica na srpskom..." : "Satz auf Serbisch..."}
+                    className="w-full p-2 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-stone-600 block text-[11px]">{isSr ? "Primer — Nemački (opciono)" : "Beispiel — Deutsch (optional)"}</label>
+                  <input
+                    type="text"
+                    value={exDe}
+                    onChange={e => setExDe(e.target.value)}
+                    placeholder={isSr ? "Rečenica na nemačkom..." : "Satz auf Deutsch..."}
+                    className="w-full p-2 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-stone-600 block text-[11px]">❤️ {isSr ? "Beleška / savet (opciono)" : "Notiz / Tipp (optional)"}</label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  placeholder={isSr ? "npr. Reč koju često koristimo..." : "z.B. Ein Wort das wir oft nutzen..."}
+                  className="w-full p-2 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-rose-50">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl font-semibold text-xs transition"
+                >
+                  {isSr ? "Otkaži" : "Abbrechen"}
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-rose-900 hover:bg-rose-950 text-white rounded-xl font-bold text-xs shadow-xs transition"
+                >
+                  {isSr ? "Sačuvaj karticu ✓" : "Karte speichern ✓"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // =========================================================================
     // LEARNING HUB WRAPPER (HOUSES THE 6 COMPREHENSIVE SCREENS)
     // =========================================================================
     function LearningHubView({ vocabulary, setVocabulary, dailyMissions, onCompleteMission, loveNote, setLoveNote, isSr, isRadoica }) {
       const [hubTab, setHubTab] = useState("today"); // 'today', 'review', 'learn', 'practice', 'progress', 'note'
       const [learnerTrack, setLearnerTrack] = useState(() => isRadoica ? "de" : "sr");
+      const [isAddCardOpen, setIsAddCardOpen] = useState(false);
 
       useEffect(() => {
         setLearnerTrack(isRadoica ? "de" : "sr");
       }, [isRadoica]);
+
+      const handleAddCustomCard = (newCard) => {
+        setVocabulary(prev => [newCard, ...prev]);
+      };
 
       return (
         <div className="space-y-4">
@@ -8655,18 +8938,29 @@
                 </span>
               </div>
 
-              <div className="flex items-center bg-rose-50/70 p-0.5 rounded-xl border border-rose-100 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center bg-rose-50/70 p-0.5 rounded-xl border border-rose-100 text-xs">
+                  <button
+                    onClick={() => setLearnerTrack("sr")}
+                    className={`px-3 py-1 rounded-lg font-bold transition ${learnerTrack === 'sr' ? 'bg-white text-rose-900 shadow-2xs' : 'text-stone-500'}`}
+                  >
+                    {isSr ? "Malak uči 🇷🇸" : "Malak lernt 🇷🇸"}
+                  </button>
+                  <button
+                    onClick={() => setLearnerTrack("de")}
+                    className={`px-3 py-1 rounded-lg font-bold transition ${learnerTrack === 'de' ? 'bg-white text-rose-900 shadow-2xs' : 'text-stone-500'}`}
+                  >
+                    {isSr ? "Radoica uči 🇩🇪" : "Radoica lernt 🇩🇪"}
+                  </button>
+                </div>
+
                 <button
-                  onClick={() => setLearnerTrack("sr")}
-                  className={`px-3 py-1 rounded-lg font-bold transition ${learnerTrack === 'sr' ? 'bg-white text-rose-900 shadow-2xs' : 'text-stone-500'}`}
+                  type="button"
+                  onClick={() => setIsAddCardOpen(true)}
+                  className="px-3 py-1.5 rounded-xl bg-rose-900 hover:bg-rose-950 text-white text-xs font-bold shadow-2xs transition flex items-center space-x-1"
                 >
-                  {isSr ? "Malak uči 🇷🇸" : "Malak lernt 🇷🇸"}
-                </button>
-                <button
-                  onClick={() => setLearnerTrack("de")}
-                  className={`px-3 py-1 rounded-lg font-bold transition ${learnerTrack === 'de' ? 'bg-white text-rose-900 shadow-2xs' : 'text-stone-500'}`}
-                >
-                  {isSr ? "Radoica uči 🇩🇪" : "Radoica lernt 🇩🇪"}
+                  <span>＋</span>
+                  <span>{isSr ? "Nova kartica" : "Neue Karte"}</span>
                 </button>
               </div>
             </div>
@@ -8711,6 +9005,7 @@
               vocabulary={vocabulary}
               setVocabulary={setVocabulary}
               onCompleteMission={onCompleteMission}
+              onOpenAddCard={() => setIsAddCardOpen(true)}
               isSr={isSr}
               isRadoica={isRadoica}
               learnerTrack={learnerTrack}
@@ -8721,6 +9016,7 @@
             <LearnView 
               vocabulary={vocabulary}
               setVocabulary={setVocabulary}
+              onOpenAddCard={() => setIsAddCardOpen(true)}
               isSr={isSr}
               isRadoica={isRadoica}
               learnerTrack={learnerTrack}
@@ -8752,6 +9048,15 @@
               setLoveNote={setLoveNote}
               isSr={isSr}
               isRadoica={isRadoica}
+            />
+          )}
+
+          {isAddCardOpen && (
+            <AddCardModal
+              isSr={isSr}
+              isRadoica={isRadoica}
+              onClose={() => setIsAddCardOpen(false)}
+              onAddCard={handleAddCustomCard}
             />
           )}
 
@@ -9433,8 +9738,8 @@
 
                     <p className="text-[11px] text-emerald-800 leading-relaxed">
                       {isSr
-                        ? "Svaki zadatak, pročitana knjiga, odbrojavanje i ljubavno pismo se odmah bez odlaganja ažuriraju na oba telefona."
-                        : "Jede Aufgabe, jedes Buch, der Countdown und euer Liebesbrief aktualisieren sich sofort auf beiden Telefonen."}
+                        ? "Svaki zadatak, pročitana knjiga, nova fleš kartica, odbrojavanje i ljubavno pismo se odmah bez odlaganja ažuriraju na oba telefona."
+                        : "Jede Aufgabe, jedes Buch, jede neue Karteikarte, der Countdown und euer Liebesbrief aktualisieren sich sofort auf beiden Telefonen."}
                     </p>
 
                     <div className="pt-2 border-t border-emerald-200/60 text-[10px] space-y-1 text-emerald-700 font-mono">
@@ -9650,13 +9955,22 @@
       const [cloudSyncStatus, setCloudSyncStatus] = useState("disconnected"); // 'disconnected', 'connecting', 'connected', 'error'
       const [lastCloudSync, setLastCloudSync] = useState(null);
       const [cloudUpdatedBy, setCloudUpdatedBy] = useState(null);
-      const isRemoteUpdateRef = useRef(false);
       const firestoreDbRef = useRef(null);
+
+      const extractCustomCards = (vocabList) =>
+        (vocabList || []).filter(w => w && w.id && String(w.id).startsWith("custom-"));
+
+      const customCardsSignature = (list) =>
+        JSON.stringify((list || []).map(c => ({
+          id: c.id, sr: c.sr, de: c.de, srCyr: c.srCyr, cat: c.cat,
+          exSr: c.exSr, exDe: c.exDe, notes: c.notes, photo: c.photo, createdBy: c.createdBy
+        })));
 
       const prevTasksRef = useRef(tasks);
       const prevBooksRef = useRef(books);
       const prevReunionRef = useRef(reunion);
       const prevLoveNoteRef = useRef(loveNote);
+      const prevCustomCardsRef = useRef(extractCustomCards(vocabulary));
 
       // Initialize Firebase on mount or when firebaseConfig changes
       useEffect(() => {
@@ -9686,22 +10000,51 @@
             (snapshot) => {
               if (snapshot.exists) {
                 const data = snapshot.data();
-                isRemoteUpdateRef.current = true;
                 if (data.tasks !== undefined) {
-                  setTasks(data.tasks);
                   prevTasksRef.current = data.tasks;
+                  setTasks(data.tasks);
                 }
                 if (data.books !== undefined) {
-                  setBooks(data.books);
                   prevBooksRef.current = data.books;
+                  setBooks(data.books);
                 }
                 if (data.reunion !== undefined) {
-                  setReunion(data.reunion);
                   prevReunionRef.current = data.reunion;
+                  setReunion(data.reunion);
                 }
                 if (data.loveNote !== undefined) {
-                  setLoveNote(data.loveNote);
                   prevLoveNoteRef.current = data.loveNote;
+                  setLoveNote(data.loveNote);
+                }
+                if (Array.isArray(data.customCards)) {
+                  const remoteSig = customCardsSignature(data.customCards);
+                  if (remoteSig !== customCardsSignature(prevCustomCardsRef.current)) {
+                    prevCustomCardsRef.current = data.customCards;
+                    setVocabulary(prev => {
+                      const builtIn = prev.filter(w => !w || !w.id || !String(w.id).startsWith("custom-"));
+                      const existingCustomMap = new Map(
+                        prev.filter(w => w && w.id && String(w.id).startsWith("custom-")).map(w => [w.id, w])
+                      );
+                      const mergedCustom = data.customCards.map(rc => {
+                        const local = existingCustomMap.get(rc.id);
+                        return local
+                          ? {
+                              ...rc,
+                              starred: local.starred,
+                              fsrsState: local.fsrsState,
+                              fsrsStability: local.fsrsStability,
+                              fsrsDifficulty: local.fsrsDifficulty,
+                              fsrsReps: local.fsrsReps,
+                              fsrsLapses: local.fsrsLapses,
+                              fsrsDue: local.fsrsDue,
+                              learnedRadoica: local.learnedRadoica,
+                              learnedMalak: local.learnedMalak
+                            }
+                          : rc;
+                      });
+                      return [...mergedCustom, ...builtIn];
+                    });
+                  }
                 }
                 if (data.updatedBy) {
                   setCloudUpdatedBy(data.updatedBy);
@@ -9709,11 +10052,14 @@
                 setCloudSyncStatus("connected");
                 setLastCloudSync(new Date());
               } else {
+                const initialCustom = extractCustomCards(vocabulary);
+                prevCustomCardsRef.current = initialCustom;
                 docRef.set({
                   tasks,
                   books,
                   reunion,
                   loveNote,
+                  customCards: initialCustom,
                   updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                   updatedBy: currentUser === 'radoica' ? 'Radoica' : 'Malak'
                 }, { merge: true }).then(() => {
@@ -9739,11 +10085,6 @@
 
       // Push local user changes to Cloud Firestore
       useEffect(() => {
-        if (isRemoteUpdateRef.current) {
-          isRemoteUpdateRef.current = false;
-          return;
-        }
-
         const updates = {};
         if (JSON.stringify(prevTasksRef.current) !== JSON.stringify(tasks)) {
           updates.tasks = tasks;
@@ -9761,6 +10102,11 @@
           updates.loveNote = loveNote;
           prevLoveNoteRef.current = loveNote;
         }
+        const currentCustom = extractCustomCards(vocabulary);
+        if (customCardsSignature(prevCustomCardsRef.current) !== customCardsSignature(currentCustom)) {
+          updates.customCards = currentCustom;
+          prevCustomCardsRef.current = currentCustom;
+        }
 
         if (Object.keys(updates).length > 0 && firestoreDbRef.current && cloudSyncStatus === "connected") {
           firestoreDbRef.current.collection("zajedno").doc("shared_state").set({
@@ -9773,15 +10119,18 @@
             console.warn("Cloud sync write error:", err);
           });
         }
-      }, [tasks, books, reunion, loveNote, cloudSyncStatus, currentUser]);
+      }, [tasks, books, reunion, loveNote, vocabulary, cloudSyncStatus, currentUser]);
 
       const handleManualCloudPush = () => {
         if (!firestoreDbRef.current) return;
+        const currentCustom = extractCustomCards(vocabulary);
+        prevCustomCardsRef.current = currentCustom;
         firestoreDbRef.current.collection("zajedno").doc("shared_state").set({
           tasks,
           books,
           reunion,
           loveNote,
+          customCards: currentCustom,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
           updatedBy: currentUser === 'radoica' ? 'Radoica' : 'Malak'
         }, { merge: true }).then(() => {
