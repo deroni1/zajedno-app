@@ -17,9 +17,8 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Firebase App & Firestore (Compat for browser single-file React) -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <!-- Supabase JS Client v2 (Real-time Cloud Sync) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -4507,16 +4506,11 @@
   }
 ];
     // =========================================================================
-    // 🔥 FIREBASE REAL-TIME CLOUD CONFIGURATION
+    // ⚡ SUPABASE REAL-TIME CLOUD CONFIGURATION
     // =========================================================================
-    const EMBEDDED_FIREBASE_CONFIG = {
-      apiKey: "AIzaSyCp5gNPKHqS7tprTLi4sQYc8ihdj_xNKm4",
-      authDomain: "zajedno-app.firebaseapp.com",
-      projectId: "zajedno-app",
-      storageBucket: "zajedno-app.firebasestorage.app",
-      messagingSenderId: "368228217093",
-      appId: "1:368228217093:web:f75936b32efb31b1f0476c",
-      measurementId: "G-RY055GXEBQ"
+    const SUPABASE_CONFIG = {
+      url: "YOUR_SUPABASE_URL",
+      anonKey: "YOUR_SUPABASE_ANON_KEY"
     };
 
     const SEED_TASKS = [];
@@ -5638,28 +5632,448 @@
     // =========================================================================
     function localizeSwissChip(chip, isSr) {
       if (!chip) return "";
-      if (chip.includes("none, standard")) {
+      if (chip.includes("none, standard") || chip.includes("1 slovo = 1 glas") || chip.includes("100% phonetic")) {
         return isSr ? "1 slovo = 1 glas (čisto fonetski)" : "1 Buchstabe = 1 Laut (100% lautgetreu)";
       }
       if (isSr) {
         return chip
           .replace("Swiss 'sch' like Schoggi", "Švajc. 'sch' kao Schoggi")
+          .replace("'ch' in Chuchichäschtli", "'ch' u Chuchichäschtli")
           .replace("Swiss 'ch' like Chuchichäschtli", "Švajc. 'ch' kao Chuchichäschtli")
-          .replace("soft 'dj' like 'schedule'", "meko 'đ' (Anđeo)")
-          .replace("soft 'ciao' / 'Züri'", "meko 'ć' kao ciao / Züri")
+          .replace("soft 'tch' like Italian 'ciao'", "meko 'tch' (ciao)")
+          .replace("soft 'dj' like 'schedule'", "meko 'dj' (Anđeo)")
+          .replace("French 'j' in bonjour", "francusko 'j' u bonjour")
           .replace("French 'j' in 'bonjour'", "francusko 'j' u bonjour")
+          .replace("'ts' like Zürich", "uvek 'ts' kao Zürich")
           .replace("always 'ts' like Zürich", "uvek 'ts' kao Zürich")
           .replace("rolled 'r'", "kotrljajuće 'r'");
       } else {
         return chip
           .replace("Swiss 'sch' like Schoggi", "Schweizer 'sch' wie Schoggi")
+          .replace("'ch' in Chuchichäschtli", "wie 'ch' in Chuchichäschtli")
           .replace("Swiss 'ch' like Chuchichäschtli", "wie 'tsch' in Tschüss")
+          .replace("soft 'tch' like Italian 'ciao'", "weiches 'tch' wie ciao")
           .replace("soft 'dj' like 'schedule'", "weiches 'dj' (Anđeo)")
-          .replace("soft 'ciao' / 'Züri'", "weiches 'ć' wie ciao / Züri")
+          .replace("French 'j' in bonjour", "franz. 'j' wie bonjour")
           .replace("French 'j' in 'bonjour'", "franz. 'j' wie bonjour")
+          .replace("'ts' like Zürich", "immer 'ts' wie Zürich")
           .replace("always 'ts' like Zürich", "immer 'ts' wie Zürich")
           .replace("rolled 'r'", "gerolltes 'r'");
       }
+    }
+
+    const CYR_TO_LAT_MAP = [
+      ["Џ", "Dž"], ["Љ", "Lj"], ["Њ", "Nj"],
+      ["џ", "dž"], ["љ", "lj"], ["њ", "nj"],
+      ["А", "A"], ["Б", "B"], ["В", "V"], ["Г", "G"], ["Д", "D"], ["Ђ", "Đ"], ["Е", "E"],
+      ["Ж", "Ž"], ["З", "Z"], ["И", "I"], ["Ј", "J"], ["К", "K"], ["Л", "L"], ["М", "M"],
+      ["Н", "N"], ["О", "O"], ["П", "P"], ["Р", "R"], ["С", "S"], ["Т", "T"], ["Ћ", "Ć"],
+      ["У", "U"], ["Ф", "F"], ["Х", "H"], ["Ц", "C"], ["Č", "Ч"], ["Ш", "Š"],
+      ["а", "a"], ["б", "b"], ["в", "v"], ["г", "g"], ["д", "d"], ["ђ", "đ"], ["е", "e"],
+      ["ж", "ž"], ["з", "z"], ["и", "i"], ["ј", "j"], ["к", "k"], ["л", "l"], ["м", "m"],
+      ["н", "n"], ["о", "o"], ["п", "p"], ["р", "r"], ["с", "s"], ["т", "t"], ["ћ", "ć"],
+      ["у", "u"], ["ф", "f"], ["х", "h"], ["ц", "c"], ["č", "č"], ["ш", "š"]
+    ];
+
+    function cyrillicToLatin(str) {
+      if (!str) return "";
+      let out = str;
+      for (const [c, l] of CYR_TO_LAT_MAP) {
+        out = out.split(c).join(l);
+      }
+      return out;
+    }
+
+    // --- Deterministic Serbian Syllabifier & Phonetic Transcriber ---
+    function syllabifySerbianWord(rawWord) {
+      const clean = cyrillicToLatin(rawWord).toLowerCase().replace(/[^a-zčćžšđ]/g, '');
+      if (!clean) return [];
+
+      const tokens = [];
+      let i = 0;
+      while (i < clean.length) {
+        const two = clean.slice(i, i + 2);
+        if (two === 'dž' || two === 'lj' || two === 'nj') {
+          tokens.push({ char: two, isDigraph: true });
+          i += 2;
+        } else {
+          tokens.push({ char: clean[i], isDigraph: false });
+          i++;
+        }
+      }
+
+      const standardVowels = new Set(['a', 'e', 'i', 'o', 'u']);
+      for (let j = 0; j < tokens.length; j++) {
+        const t = tokens[j];
+        if (standardVowels.has(t.char)) {
+          t.isVowel = true;
+        } else if (t.char === 'r') {
+          const prev = j > 0 ? tokens[j - 1] : null;
+          const next = j < tokens.length - 1 ? tokens[j + 1] : null;
+          const prevIsC = !prev || (!prev.isVowel && !standardVowels.has(prev.char));
+          const nextIsC = !next || (!next.isVowel && !standardVowels.has(next.char));
+          t.isVowel = prevIsC && nextIsC;
+        } else {
+          t.isVowel = false;
+        }
+      }
+
+      const vowelIndices = [];
+      tokens.forEach((t, idx) => {
+        if (t.isVowel) vowelIndices.push(idx);
+      });
+
+      if (vowelIndices.length <= 1) {
+        return [tokens.map(t => t.char).join('')];
+      }
+
+      const splitPoints = [];
+      for (let v = 0; v < vowelIndices.length - 1; v++) {
+        const v1 = vowelIndices[v];
+        const v2 = vowelIndices[v + 1];
+        const consonants = v2 - v1 - 1;
+        if (consonants === 0) {
+          splitPoints.push(v2);
+        } else if (consonants === 1) {
+          splitPoints.push(v1 + 1);
+        } else if (consonants === 2) {
+          const c1 = tokens[v1 + 1].char;
+          const c2 = tokens[v1 + 2].char;
+          const onsetCluster = ['st', 'sp', 'sk', 'št', 'šp', 'šk', 'tr', 'pr', 'br', 'dr', 'kr', 'gr', 'mr', 'vl', 'sv', 'cv'].includes(c1 + c2);
+          if (onsetCluster && v1 !== 0) {
+            splitPoints.push(v1 + 1);
+          } else {
+            splitPoints.push(v1 + 2);
+          }
+        } else {
+          splitPoints.push(v1 + 2);
+        }
+      }
+
+      const syllables = [];
+      let curr = [];
+      tokens.forEach((t, idx) => {
+        if (splitPoints.includes(idx) && curr.length > 0) {
+          syllables.push(curr.map(x => x.char).join(''));
+          curr = [];
+        }
+        curr.push(t);
+      });
+      if (curr.length > 0) {
+        syllables.push(curr.map(x => x.char).join(''));
+      }
+      return syllables;
+    }
+
+    function serbianSyllableToPhonetic(syl, isStressed) {
+      let res = '';
+      let i = 0;
+      while (i < syl.length) {
+        const two = syl.slice(i, i + 2);
+        if (two === 'dž') { res += 'j'; i += 2; }
+        else if (two === 'lj') { res += 'ly'; i += 2; }
+        else if (two === 'nj') { res += 'ny'; i += 2; }
+        else {
+          const c = syl[i];
+          if (c === 'č') res += 'ch';
+          else if (c === 'ć') res += 'tch';
+          else if (c === 'š') res += 'sh';
+          else if (c === 'ž') res += 'zh';
+          else if (c === 'đ') res += 'dy';
+          else if (c === 'c') res += 'ts';
+          else if (c === 'j') res += 'y';
+          else if (c === 'u') res += 'oo';
+          else if (c === 'i') res += 'ee';
+          else if (c === 'e') {
+            res += (syl.length === 1 || i === syl.length - 1) ? 'eh' : 'e';
+          }
+          else if (c === 'o') {
+            if (syl.length === 1 || i === syl.length - 1) {
+              res += (isStressed && syl === 'vo') ? 'o' : 'oh';
+            } else {
+              res += 'o';
+            }
+          }
+          else if (c === 'a') {
+            res += 'ah';
+          }
+          else {
+            res += c;
+          }
+          i++;
+        }
+      }
+
+      if (isStressed) {
+        return `[${res.toUpperCase()}]`;
+      }
+      return res;
+    }
+
+    function generateSrPronunciation(text) {
+      if (!text || !text.trim()) return "";
+      const words = cyrillicToLatin(text).trim().split(/\s+/);
+      const clitics = new Set([
+        "te", "ti", "mi", "me", "se", "ga", "je", "mu", "ih", "im", "nam", "vam", "nas", "vas",
+        "da", "i", "u", "na", "sa", "za", "od", "do", "po", "iz", "o", "pri", "kod", "bez", "kroz",
+        "pa", "a", "ali", "ili", "ni", "niti", "zar", "li", "si", "su", "smo", "ste", "bih", "bi"
+      ]);
+
+      const allSyllables = [];
+      words.forEach((w) => {
+        const rawClean = w.replace(/[^a-zA-ZčćžšđČĆŽŠĐ]/g, "");
+        if (!rawClean) return;
+        const lower = rawClean.toLowerCase();
+        const syllables = syllabifySerbianWord(rawClean);
+        if (syllables.length === 0) return;
+
+        const isClitic = clitics.has(lower);
+        let stressIdx = -1;
+
+        if (!isClitic) {
+          if (syllables.length === 1) {
+            stressIdx = 0;
+          } else if (syllables.length === 2) {
+            stressIdx = 0;
+          } else if (syllables.length === 3) {
+            const hasPrefix = /^(po|za|ne|na|od|do|pre|iz|raz|ob)/.test(lower);
+            stressIdx = hasPrefix ? 1 : 0;
+          } else {
+            stressIdx = syllables.length - 2;
+          }
+        }
+
+        syllables.forEach((syl, sIdx) => {
+          allSyllables.push(serbianSyllableToPhonetic(syl, sIdx === stressIdx));
+        });
+      });
+
+      return allSyllables.join(" · ");
+    }
+
+    // --- Deterministic German Syllabifier & Phonetic Transcriber ---
+    function syllabifyGermanWord(rawWord) {
+      const clean = rawWord.toLowerCase().replace(/[^a-zäöüß]/g, '');
+      if (!clean) return [];
+
+      const vowels = ['a', 'e', 'i', 'o', 'u', 'ä', 'ö', 'ü'];
+      const diphthongs = ['ei', 'ie', 'eu', 'äu', 'au'];
+
+      const tokens = [];
+      let i = 0;
+      while (i < clean.length) {
+        const two = clean.slice(i, i + 2);
+        const three = clean.slice(i, i + 3);
+        const four = clean.slice(i, i + 4);
+
+        if (diphthongs.includes(two)) {
+          tokens.push({ char: two, isVowel: true });
+          i += 2;
+        } else if (four === 'tsch') {
+          tokens.push({ char: 'tsch', isConsonantCluster: true });
+          i += 4;
+        } else if (three === 'sch') {
+          tokens.push({ char: 'sch', isConsonantCluster: true });
+          i += 3;
+        } else if (two === 'ch' || two === 'ck' || two === 'ph' || two === 'th') {
+          tokens.push({ char: two, isConsonantCluster: true });
+          i += 2;
+        } else if (vowels.includes(clean[i])) {
+          tokens.push({ char: clean[i], isVowel: true });
+          i++;
+        } else {
+          tokens.push({ char: clean[i], isVowel: false });
+          i++;
+        }
+      }
+
+      const vowelIndices = [];
+      tokens.forEach((t, idx) => {
+        if (t.isVowel) vowelIndices.push(idx);
+      });
+
+      if (vowelIndices.length <= 1) {
+        return [tokens.map(t => t.char).join('')];
+      }
+
+      const splitPoints = [];
+      for (let v = 0; v < vowelIndices.length - 1; v++) {
+        const v1 = vowelIndices[v];
+        const v2 = vowelIndices[v + 1];
+        const consonants = v2 - v1 - 1;
+        if (consonants === 0) {
+          splitPoints.push(v2);
+        } else if (consonants === 1) {
+          splitPoints.push(v1 + 1);
+        } else {
+          splitPoints.push(v2 - 1);
+        }
+      }
+
+      const syllables = [];
+      let curr = [];
+      tokens.forEach((t, idx) => {
+        if (splitPoints.includes(idx) && curr.length > 0) {
+          syllables.push(curr.map(x => x.char).join(''));
+          curr = [];
+        }
+        curr.push(t);
+      });
+      if (curr.length > 0) {
+        syllables.push(curr.map(x => x.char).join(''));
+      }
+      return syllables;
+    }
+
+    function germanSyllableToPhonetic(syl, isStressed) {
+      let res = '';
+      let i = 0;
+      while (i < syl.length) {
+        const four = syl.slice(i, i + 4);
+        const three = syl.slice(i, i + 3);
+        const two = syl.slice(i, i + 2);
+
+        if (four === 'tsch') {
+          res += 'ch'; i += 4;
+        } else if (three === 'sch') {
+          res += 'sh'; i += 3;
+        } else if (two === 'ch') {
+          res += (i > 0 && ['a','o','u'].includes(syl[i-1])) ? 'kh' : 'ch';
+          i += 2;
+        } else if (two === 'ck') {
+          res += 'k'; i += 2;
+        } else if (two === 'ei') {
+          res += 'ay'; i += 2;
+        } else if (two === 'ie') {
+          res += 'ee'; i += 2;
+        } else if (two === 'eu' || two === 'äu') {
+          res += 'oy'; i += 2;
+        } else if (two === 'au') {
+          res += 'ow'; i += 2;
+        } else if (two === 'ph') {
+          res += 'f'; i += 2;
+        } else if (two === 'th') {
+          res += 't'; i += 2;
+        } else if (two === 'sp' && i === 0) {
+          res += 'shp'; i += 2;
+        } else if (two === 'st' && i === 0) {
+          res += 'sht'; i += 2;
+        } else {
+          const c = syl[i];
+          if (c === 'z') res += 'ts';
+          else if (c === 'w') res += 'v';
+          else if (c === 'v') res += 'f';
+          else if (c === 'ü') res += 'oo';
+          else if (c === 'ö') res += 'öh';
+          else if (c === 'ä') res += 'eh';
+          else if (c === 'j') res += 'y';
+          else if (c === 's') {
+            const nextIsVowel = i < syl.length - 1 && ['a','e','i','o','u','ä','ö','ü'].includes(syl[i+1]);
+            res += nextIsVowel ? 'z' : 's';
+          }
+          else if (c === 'ß') res += 's';
+          else if (c === 'u') res += 'oo';
+          else if (c === 'i') res += 'ee';
+          else if (c === 'e') {
+            res += (syl.length === 1 || i === syl.length - 1) ? 'eh' : 'e';
+          }
+          else if (c === 'a') {
+            res += (syl.length === 1 || i === syl.length - 1) ? 'ah' : 'ah';
+          }
+          else if (c === 'o') {
+            res += (syl.length === 1 || i === syl.length - 1) ? 'oh' : 'oh';
+          }
+          else {
+            res += c;
+          }
+          i++;
+        }
+      }
+
+      if (isStressed) {
+        return `[${res.toUpperCase()}]`;
+      }
+      return res;
+    }
+
+    function generateDePronunciation(text) {
+      if (!text || !text.trim()) return "";
+      const words = text.trim().split(/\s+/);
+      const unstressedShort = new Set([
+        "der", "die", "das", "ein", "eine", "einer", "einem", "einen", "und", "in", "an", "zu",
+        "von", "mit", "für", "auf", "aus", "bei", "nach", "über", "unter", "vor", "zwischen",
+        "du", "er", "sie", "wir", "ihr", "mich", "dich", "sich", "mir", "dir", "uns", "euch",
+        "mein", "dein", "sein"
+      ]);
+
+      const allSyllables = [];
+      let mainWordIdx = 0;
+      if (words[0].toLowerCase() === 'ich' && words.length > 1 && words[1].toLowerCase() === 'liebe') {
+        mainWordIdx = 0;
+      } else {
+        for (let i = 0; i < words.length; i++) {
+          if (!unstressedShort.has(words[i].toLowerCase())) {
+            mainWordIdx = i;
+            break;
+          }
+        }
+      }
+
+      words.forEach((w, wIdx) => {
+        const rawClean = w.replace(/[^a-zA-ZäöüßÄÖÜ]/g, "");
+        if (!rawClean) return;
+        const lower = rawClean.toLowerCase();
+        const syllables = syllabifyGermanWord(rawClean);
+        if (syllables.length === 0) return;
+
+        let stressIdx = -1;
+        if (wIdx === mainWordIdx || (words.length === 1)) {
+          if (syllables.length === 1) {
+            stressIdx = 0;
+          } else {
+            const hasUnstressedPrefix = /^(be|ge|er|ver|zer|ent|emp)/.test(lower);
+            stressIdx = hasUnstressedPrefix ? 1 : 0;
+          }
+        }
+
+        syllables.forEach((syl, sIdx) => {
+          allSyllables.push(germanSyllableToPhonetic(syl, sIdx === stressIdx));
+        });
+      });
+
+      return allSyllables.join(" · ");
+    }
+
+    function generateSwissChip(srText) {
+      if (!srText) return "1 slovo = 1 glas (100% phonetic)";
+      const lower = cyrillicToLatin(srText).toLowerCase();
+
+      const chips = [];
+      if (lower.includes("š")) chips.push("š -> 🇨🇭 Swiss 'sch' like Schoggi");
+      if (lower.includes("č")) chips.push("č -> 🇨🇭 'ch' in Chuchichäschtli");
+      if (lower.includes("ć")) chips.push("ć -> 🇮🇹 soft 'tch' like Italian 'ciao'");
+      if (lower.includes("ž")) chips.push("ž -> 🇫🇷 French 'j' in bonjour");
+      if (lower.includes("đ")) chips.push("đ -> 🇬🇧 soft 'dj' like 'schedule'");
+      if (lower.includes("dž")) chips.push("dž -> 🇬🇧 'j' in Jeans");
+      if (lower.includes("lj")) chips.push("lj -> 🇮🇹 'gl' in famiglia");
+      if (lower.includes("nj")) chips.push("nj -> 🇮🇹 'gn' in gnocchi");
+      if (/c(?![čć])/.test(lower)) chips.push("c -> 🇨🇭 'ts' like Zürich");
+
+      if (chips.length === 0) {
+        return "1 slovo = 1 glas (100% phonetic)";
+      }
+      return chips.slice(0, 2).join("; ");
+    }
+
+    function generatePronunciationData(srText = "", deText = "") {
+      const srClean = (srText || "").trim();
+      const deClean = (deText || "").trim();
+      return {
+        srPron: generateSrPronunciation(srClean),
+        dePron: generateDePronunciation(deClean),
+        swissChip: generateSwissChip(srClean),
+        srCyr: latinToCyrillic(srClean)
+      };
     }
 
     function buildSpellingGuide(word, isSr) {
@@ -6826,17 +7240,18 @@
           setSavedFeedback(true);
           return;
         }
+        const pronData = generatePronunciationData(srText, deText);
         const photoNum = String(Math.floor(Math.random() * 47) + 1).padStart(2, "0");
         const newCard = {
           id: "custom-" + Date.now(),
           sr: srText,
-          srCyr: latinToCyrillic(srText),
+          srCyr: pronData.srCyr || latinToCyrillic(srText),
           de: deText,
           en: "",
           cat: "Everyday",
-          srPron: "",
-          dePron: "",
-          swissChip: "",
+          srPron: pronData.srPron,
+          dePron: pronData.dePron,
+          swissChip: pronData.swissChip,
           exSr: srText,
           exDe: deText,
           notes: isSr ? "Dodato iz prevodioca" : "Vom Übersetzer gespeichert",
@@ -8720,6 +9135,13 @@
       const [exDe, setExDe] = useState("");
       const [notes, setNotes] = useState("");
 
+      // Phonetic pronunciation & Swiss chip state
+      const [srPron, setSrPron] = useState("");
+      const [dePron, setDePron] = useState("");
+      const [swissChip, setSwissChip] = useState("");
+      const [srCyr, setSrCyr] = useState("");
+      const [isCustomPron, setIsCustomPron] = useState(false);
+
       const categories = [
         "Everyday",
         "Romance",
@@ -8731,20 +9153,59 @@
         "Grammar & Questions"
       ];
 
+      const handleSrChange = (val) => {
+        setSr(val);
+        if (!isCustomPron) {
+          const pron = generatePronunciationData(val, de);
+          setSrPron(pron.srPron);
+          setSwissChip(pron.swissChip);
+          setSrCyr(pron.srCyr);
+        }
+      };
+
+      const handleDeChange = (val) => {
+        setDe(val);
+        if (!isCustomPron) {
+          const pron = generatePronunciationData(sr, val);
+          setDePron(pron.dePron);
+        }
+      };
+
+      const handleInsertSrChar = (ch) => {
+        const next = sr + ch;
+        handleSrChange(next);
+      };
+
+      const handleInsertDeChar = (ch) => {
+        const next = de + ch;
+        handleDeChange(next);
+      };
+
+      const handleResetPronunciation = () => {
+        const pron = generatePronunciationData(sr, de);
+        setSrPron(pron.srPron);
+        setDePron(pron.dePron);
+        setSwissChip(pron.swissChip);
+        setSrCyr(pron.srCyr);
+        setIsCustomPron(false);
+      };
+
       const handleSubmit = (e) => {
         e.preventDefault();
         if (!sr.trim() || !de.trim()) return;
         const photoNum = String(Math.floor(Math.random() * 47) + 1).padStart(2, "0");
+        const finalPron = generatePronunciationData(sr.trim(), de.trim());
+
         const newCard = {
           id: "custom-" + Date.now(),
           sr: sr.trim(),
-          srCyr: latinToCyrillic(sr.trim()),
+          srCyr: (srCyr.trim() || finalPron.srCyr || latinToCyrillic(sr.trim())),
           de: de.trim(),
           en: "",
           cat,
-          srPron: "",
-          dePron: "",
-          swissChip: "",
+          srPron: srPron.trim() || finalPron.srPron,
+          dePron: dePron.trim() || finalPron.dePron,
+          swissChip: swissChip.trim() || finalPron.swissChip,
           exSr: exSr.trim() || sr.trim(),
           exDe: exDe.trim() || de.trim(),
           notes: notes.trim(),
@@ -8769,7 +9230,7 @@
 
       return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4" onClick={onClose}>
-          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 text-xs border border-rose-100 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 text-xs border border-rose-100 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-rose-50 pb-3">
               <div>
                 <h3 className="font-extrabold text-stone-900 text-sm flex items-center space-x-1.5">
@@ -8777,7 +9238,7 @@
                   <span>{isSr ? "Dodaj novu fleš karticu" : "Neue Karteikarte hinzufügen"}</span>
                 </h3>
                 <p className="text-[11px] text-stone-400 mt-0.5">
-                  {isSr ? "Odmah se sinhronizuje na oba telefona ☁️" : "Wird sofort auf beiden Handys synchronisiert ☁️"}
+                  {isSr ? "Automatski generiše fonetski izgovor i sinhronizuje se uživo ☁️" : "Erzeugt phonetische Aussprache automatisch und synchronisiert live ☁️"}
                 </p>
               </div>
               <button type="button" onClick={onClose} className="p-1 text-stone-400 hover:text-stone-700 text-sm font-bold">✕</button>
@@ -8792,7 +9253,7 @@
                       <button
                         key={ch}
                         type="button"
-                        onClick={() => setSr(prev => prev + ch)}
+                        onClick={() => handleInsertSrChar(ch)}
                         className="px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded font-bold text-[10px] border border-rose-100"
                       >
                         {ch}
@@ -8804,7 +9265,7 @@
                   type="text"
                   required
                   value={sr}
-                  onChange={e => setSr(e.target.value)}
+                  onChange={e => handleSrChange(e.target.value)}
                   placeholder={isSr ? "npr. Nedostaješ mi" : "z.B. Nedostaješ mi"}
                   className="w-full p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
                 />
@@ -8818,7 +9279,7 @@
                       <button
                         key={ch}
                         type="button"
-                        onClick={() => setDe(prev => prev + ch)}
+                        onClick={() => handleInsertDeChar(ch)}
                         className="px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded font-bold text-[10px] border border-rose-100"
                       >
                         {ch}
@@ -8830,11 +9291,110 @@
                   type="text"
                   required
                   value={de}
-                  onChange={e => setDe(e.target.value)}
+                  onChange={e => handleDeChange(e.target.value)}
                   placeholder={isSr ? "npr. Du fehlst mir" : "z.B. Du fehlst mir"}
                   className="w-full p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
                 />
               </div>
+
+              {/* ✨ LIVE PRONUNCIATION PREVIEW (PronunciationPill) */}
+              {(sr.trim() || de.trim()) && (
+                <div className="bg-rose-50/60 rounded-2xl p-3 border border-rose-100 space-y-2">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-extrabold text-stone-700 flex items-center space-x-1">
+                      <span>✨</span>
+                      <span>{isSr ? "Fonetski izgovor uživo (Live Preview):" : "Phonetische Aussprache (Live-Vorschau):"}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomPron(prev => !prev)}
+                      className="text-rose-700 hover:text-rose-900 font-bold text-[10px] underline"
+                    >
+                      {isCustomPron 
+                        ? (isSr ? "Sakrij ručna polja ✕" : "Manuelle Felder verbergen ✕") 
+                        : (isSr ? "✏️ Prilagodi ručno" : "✏️ Manuell anpassen")}
+                    </button>
+                  </div>
+
+                  {sr.trim() && (
+                    <div className="bg-white/95 p-2 rounded-xl border border-rose-100 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-stone-500">🇷🇸 {isSr ? "Srpski izgovor za Malak:" : "Serbische Aussprache für Malak:"}</span>
+                        {srCyr && (
+                          <span className="text-[10px] bg-stone-100 text-stone-700 font-serif px-1.5 py-0.5 rounded border border-stone-200 font-semibold">
+                            {srCyr}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex justify-start">
+                        <PronunciationPill word={sr} pron={srPron} swissChip={swissChip} isSr={isSr} compact />
+                      </div>
+                    </div>
+                  )}
+
+                  {de.trim() && (
+                    <div className="bg-white/95 p-2 rounded-xl border border-rose-100 space-y-1">
+                      <span className="text-[10px] font-bold text-stone-500 block">🇩🇪 {isSr ? "Nemački izgovor za Rada:" : "Deutsche Aussprache für Radoica:"}</span>
+                      <div className="flex justify-start">
+                        <PronunciationPill word={de} pron={dePron} isSr={isSr} compact />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Manual customization inputs */}
+                  {isCustomPron && (
+                    <div className="pt-2 border-t border-rose-200/70 space-y-2 animate-in fade-in">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-600 block">🇷🇸 Srpski fonetski (srPron):</label>
+                          <input
+                            type="text"
+                            value={srPron}
+                            onChange={e => { setSrPron(e.target.value); setIsCustomPron(true); }}
+                            className="w-full p-1.5 bg-white rounded-lg border border-stone-200 text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-600 block">🇩🇪 Nemački fonetski (dePron):</label>
+                          <input
+                            type="text"
+                            value={dePron}
+                            onChange={e => { setDePron(e.target.value); setIsCustomPron(true); }}
+                            className="w-full p-1.5 bg-white rounded-lg border border-stone-200 text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-600 block">🇨🇭 Švajcarski savet (swissChip):</label>
+                          <input
+                            type="text"
+                            value={swissChip}
+                            onChange={e => { setSwissChip(e.target.value); setIsCustomPron(true); }}
+                            className="w-full p-1.5 bg-white rounded-lg border border-stone-200 text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-stone-600 block">🇷🇸 Ćirilica (srCyr):</label>
+                          <input
+                            type="text"
+                            value={srCyr}
+                            onChange={e => { setSrCyr(e.target.value); setIsCustomPron(true); }}
+                            className="w-full p-1.5 bg-white rounded-lg border border-stone-200 text-xs font-serif"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleResetPronunciation}
+                        className="text-[10px] text-stone-500 hover:text-stone-800 underline font-semibold block"
+                      >
+                        {isSr ? "🔄 Resetuj na automatski proračunate vrednosti" : "🔄 Auf automatische Werte zurücksetzen"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="font-bold text-stone-700 block">{isSr ? "Kategorija" : "Kategorie"}</label>
@@ -9629,11 +10189,12 @@
 
     function SyncModal({ 
       vocabulary, tasks, books, reunion, loveNote, isSr, onClose, onImport,
-      firebaseConfig, onSaveFirebaseConfig, onDisconnectFirebase,
+      supabaseConfig, onSaveSupabaseConfig, onDisconnectSupabase,
       cloudSyncStatus, lastCloudSync, cloudUpdatedBy, onManualCloudPush
     }) {
       const [tab, setTab] = useState("cloud"); // 'cloud' or 'offline'
-      const [configInput, setConfigInput] = useState("");
+      const [urlInput, setUrlInput] = useState(() => supabaseConfig?.url || "");
+      const [keyInput, setKeyInput] = useState(() => supabaseConfig?.anonKey || "");
       const [showHelp, setShowHelp] = useState(false);
       const [errorMsg, setErrorMsg] = useState("");
 
@@ -9659,34 +10220,63 @@
       const handleSaveConfig = (e) => {
         e.preventDefault();
         setErrorMsg("");
-        if (!configInput.trim()) return;
+        const cleanUrl = urlInput.trim();
+        const cleanKey = keyInput.trim();
 
-        let parsed = null;
-        try {
-          parsed = JSON.parse(configInput.trim());
-        } catch (err1) {
-          try {
-            const cleaned = configInput.replace(/const\s+firebaseConfig\s*=\s*/, "").replace(/;\s*$/, "");
-            const fn = new Function("return " + cleaned);
-            parsed = fn();
-          } catch (err2) {
-            setErrorMsg(isSr ? "Nevažeći format. Proverite da li ste kopirali celokupan firebaseConfig objekat." : "Ungültiges Format. Bitte prüfe, ob das gesamte firebaseConfig-Objekt kopiert wurde.");
-            return;
-          }
-        }
-
-        if (!parsed || !parsed.projectId) {
-          setErrorMsg(isSr ? "Nedostaje 'projectId' u konfiguraciji." : "Fehlende 'projectId' in der Konfiguration.");
+        if (!cleanUrl || !cleanKey) {
+          setErrorMsg(isSr ? "Unesite i Supabase URL i Anon Key." : "Bitte sowohl Supabase URL als auch Anon Key eingeben.");
           return;
         }
 
-        onSaveFirebaseConfig(parsed);
+        if (!cleanUrl.startsWith("http")) {
+          setErrorMsg(isSr ? "Supabase URL mora počinjati sa https://" : "Supabase URL muss mit https:// beginnen.");
+          return;
+        }
+
+        onSaveSupabaseConfig({ url: cleanUrl, anonKey: cleanKey });
       };
 
-      const handleCopyFirebaseConfig = () => {
-        if (!firebaseConfig) return;
-        navigator.clipboard.writeText(JSON.stringify(firebaseConfig, null, 2));
-        alert(isSr ? "Firebase podešavanja kopirana! Pošaljite ih partneru preko WhatsApp-a." : "Firebase-Einstellungen kopiert! Sende sie an deinen Partner per WhatsApp.");
+      const handleCopySupabaseConfig = () => {
+        if (!supabaseConfig) return;
+        navigator.clipboard.writeText(JSON.stringify(supabaseConfig, null, 2));
+        alert(isSr ? "Supabase podešavanja kopirana! Pošaljite ih partneru preko WhatsApp-a." : "Supabase-Einstellungen kopiert! Sende sie an deinen Partner per WhatsApp.");
+      };
+
+      const handleCopySqlSnippet = () => {
+        const sql = `-- Zajedno App Supabase Table & Realtime Setup
+create table if not exists public.zajedno_state (
+  id text primary key,
+  vocabulary jsonb not null default '[]'::jsonb,
+  tasks jsonb not null default '[]'::jsonb,
+  books jsonb not null default '[]'::jsonb,
+  reunion jsonb not null default '{}'::jsonb,
+  love_note jsonb not null default '{}'::jsonb,
+  daily_missions jsonb not null default '[]'::jsonb,
+  client_id text,
+  updated_at timestamptz default now(),
+  updated_by text
+);
+
+alter table public.zajedno_state enable row level security;
+
+drop policy if exists "Allow anon read for couple room" on public.zajedno_state;
+create policy "Allow anon read for couple room" on public.zajedno_state for select to anon, authenticated using (id = 'radoica-malak');
+
+drop policy if exists "Allow anon insert for couple room" on public.zajedno_state;
+create policy "Allow anon insert for couple room" on public.zajedno_state for insert to anon, authenticated with check (id = 'radoica-malak');
+
+drop policy if exists "Allow anon update for couple room" on public.zajedno_state;
+create policy "Allow anon update for couple room" on public.zajedno_state for update to anon, authenticated using (id = 'radoica-malak') with check (id = 'radoica-malak');
+
+do \$\$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'zajedno_state') then
+    alter publication supabase_realtime add table public.zajedno_state;
+  end if;
+end;
+\$\$;`;
+        navigator.clipboard.writeText(sql);
+        alert(isSr ? "SQL skripta je kopirana u clipboard!" : "SQL-Skript in die Zwischenablage kopiert!");
       };
 
       return (
@@ -9696,11 +10286,11 @@
             <div className="flex items-center justify-between border-b border-rose-50 pb-3">
               <div>
                 <h3 className="font-extrabold text-stone-900 text-sm flex items-center space-x-1.5">
-                  <span>☁️</span>
-                  <span>{isSr ? "Sinhronizacija u Realnom Vremenu" : "Echtzeit-Synchronisation"}</span>
+                  <span>⚡</span>
+                  <span>{isSr ? "Supabase Uživo Sinhronizacija" : "Supabase Echtzeit-Synchronisation"}</span>
                 </h3>
                 <p className="text-[11px] text-stone-400 mt-0.5">
-                  {isSr ? "Povezuje Beograd 🇷🇸 i Cirih 🇨🇭 uživo" : "Verbindet Belgrad 🇷🇸 & Zürich 🇨🇭 live"}
+                  {isSr ? "Direktna real-time veza između Beograda 🇷🇸 i Ciriha 🇨🇭" : "Direkte Realtime-Verbindung zwischen Belgrad 🇷🇸 & Zürich 🇨🇭"}
                 </p>
               </div>
               <button onClick={onClose} className="p-1 text-stone-400 hover:text-stone-700 text-sm font-bold">✕</button>
@@ -9713,7 +10303,7 @@
                 onClick={() => setTab("cloud")}
                 className={`flex-1 py-1.5 rounded-lg font-bold text-xs transition flex items-center justify-center space-x-1.5 ${tab === 'cloud' ? 'bg-white text-rose-950 shadow-2xs' : 'text-stone-500 hover:text-stone-800'}`}
               >
-                <span>☁️ Cloud (Firebase)</span>
+                <span>☁️ Supabase Cloud</span>
                 {cloudSyncStatus === 'connected' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}
               </button>
               <button
@@ -9732,20 +10322,20 @@
                     <div className="flex items-center space-x-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
                       <span className="font-extrabold text-xs text-emerald-900">
-                        {isSr ? "Uživo sinhronizovano sa oblakom!" : "Live mit der Cloud synchronisiert!"}
+                        {isSr ? "Uživo povezano sa Supabase bazom!" : "Live mit Supabase verbunden!"}
                       </span>
                     </div>
 
                     <p className="text-[11px] text-emerald-800 leading-relaxed">
                       {isSr
-                        ? "Svaki zadatak, pročitana knjiga, nova fleš kartica, odbrojavanje i ljubavno pismo se odmah bez odlaganja ažuriraju na oba telefona."
-                        : "Jede Aufgabe, jedes Buch, jede neue Karteikarte, der Countdown und euer Liebesbrief aktualisieren sich sofort auf beiden Telefonen."}
+                        ? "Svaka dodata kartica, izgovorena reč, čekiran zadatak, knjiga i ljubavno pismo se odmah u deliću sekunde ažuriraju preko WebSocket-a kod partnera."
+                        : "Jede Karteikarte, jedes Wort, abgehakte Aufgabe, Buch und Liebesbrief aktualisieren sich sofort in Millisekunden per WebSocket beim Partner."}
                     </p>
 
                     <div className="pt-2 border-t border-emerald-200/60 text-[10px] space-y-1 text-emerald-700 font-mono">
                       <div>• {isSr ? "Poslednja sinhronizacija:" : "Letzte Synchronisation:"} {lastCloudSync ? lastCloudSync.toLocaleTimeString() : (isSr ? "Upravo" : "Gerade eben")}</div>
-                      {cloudUpdatedBy && <div>• {isSr ? "Poslednja izmena od:" : "Letzte Änderung von:"} {cloudUpdatedBy}</div>}
-                      {firebaseConfig?.projectId && <div>• {isSr ? "Projekat:" : "Projekt:"} {firebaseConfig.projectId}</div>}
+                      {cloudUpdatedBy && <div>• {isSr ? "Poslednja izmena:" : "Letzte Änderung von:"} {cloudUpdatedBy}</div>}
+                      {supabaseConfig?.url && <div className="truncate">• URL: {supabaseConfig.url}</div>}
                     </div>
 
                     <div className="flex flex-wrap gap-2 pt-2">
@@ -9761,7 +10351,7 @@
                       )}
                       <button
                         type="button"
-                        onClick={handleCopyFirebaseConfig}
+                        onClick={handleCopySupabaseConfig}
                         className="px-3 py-1.5 bg-white border border-emerald-300 text-emerald-900 rounded-xl font-bold text-[11px] transition hover:bg-emerald-100/50 flex items-center space-x-1"
                       >
                         <span>📋</span>
@@ -9769,10 +10359,10 @@
                       </button>
                       <button
                         type="button"
-                        onClick={onDisconnectFirebase}
+                        onClick={onDisconnectSupabase}
                         className="px-2 py-1.5 text-red-600 hover:text-red-800 text-[10px] font-semibold underline"
                       >
-                        {isSr ? "Isključi Cloud" : "Trennen"}
+                        {isSr ? "Isključi Supabase" : "Trennen"}
                       </button>
                     </div>
                   </div>
@@ -9781,27 +10371,43 @@
                     <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 space-y-1 text-amber-950">
                       <div className="font-bold flex items-center space-x-1.5 text-xs text-amber-900">
                         <span>⚡</span>
-                        <span>{isSr ? "Kako radi automatsko ažuriranje?" : "Wie funktioniert die Live-Aktualisierung?"}</span>
+                        <span>{isSr ? "Kako radi Supabase Realtime?" : "Wie funktioniert Supabase Realtime?"}</span>
                       </div>
                       <p className="text-[11px] text-amber-800 leading-relaxed">
                         {isSr
-                          ? "Kada povežete besplatan Google Firebase, čim dodate knjigu ili čekirate zadatak, on se istog sekunda pojavljuje i na drugom telefonu!"
-                          : "Sobald Google Firebase verbunden ist, erscheint jedes neue Buch oder jede abgehakte Aufgabe sofort auf beiden Telefonen!"}
+                          ? "Supabase omogućava trenutnu dvosmernu sinhronizaciju između telefona i računara bez zastoja ili beskonačnih petlji!"
+                          : "Supabase ermöglicht sofortige bidirektionale Echtzeit-Synchronisation zwischen Handy und PC ohne Verzögerung!"}
                       </p>
                     </div>
 
-                    <form onSubmit={handleSaveConfig} className="space-y-2">
-                      <label className="block text-[11px] font-bold text-stone-700">
-                        {isSr ? "Zalepi Firebase konfiguraciju (JSON ili JS objekat):" : "Firebase-Konfiguration einfügen (JSON oder JS-Objekt):"}
-                      </label>
-                      <textarea
-                        rows="4"
-                        value={configInput}
-                        onChange={e => setConfigInput(e.target.value)}
-                        placeholder={`{\n  "apiKey": "AIzaSy...",\n  "projectId": "zajedno-app",\n  "appId": "..."\n}`}
-                        className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-rose-400"
-                        required
-                      />
+                    <form onSubmit={handleSaveConfig} className="space-y-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-stone-700 mb-0.5">
+                          {isSr ? "Supabase URL projekta:" : "Supabase Projekt-URL:"}
+                        </label>
+                        <input
+                          type="text"
+                          value={urlInput}
+                          onChange={e => setUrlInput(e.target.value)}
+                          placeholder="https://xyzcompany.supabase.co"
+                          className="w-full p-2 bg-stone-50 border border-stone-200 rounded-xl font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-rose-400"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-stone-700 mb-0.5">
+                          {isSr ? "Supabase Anon Public API Key:" : "Supabase Anon Public API Key:"}
+                        </label>
+                        <textarea
+                          rows="3"
+                          value={keyInput}
+                          onChange={e => setKeyInput(e.target.value)}
+                          placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                          className="w-full p-2 bg-stone-50 border border-stone-200 rounded-xl font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-rose-400"
+                          required
+                        />
+                      </div>
 
                       {errorMsg && (
                         <p className="text-[11px] text-red-600 font-bold bg-red-50 p-2 rounded-lg border border-red-100">
@@ -9816,35 +10422,44 @@
                           className="text-[11px] text-rose-700 font-bold hover:underline flex items-center space-x-1"
                         >
                           <span>❓</span>
-                          <span>{isSr ? "Uputstvo za 1 minut" : "1-Minuten Anleitung"}</span>
+                          <span>{isSr ? "SQL šema i uputstvo" : "SQL-Schema & Anleitung"}</span>
                         </button>
                         <button
                           type="submit"
                           className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-xl font-bold text-xs shadow-xs transition"
                         >
-                          {isSr ? "Sačuvaj i Poveži 🚀" : "Speichern & Verbinden 🚀"}
+                          {isSr ? "Poveži Supabase 🚀" : "Supabase Verbinden 🚀"}
                         </button>
                       </div>
                     </form>
 
                     {showHelp && (
                       <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3.5 space-y-2 text-[11px] text-stone-700 animate-in fade-in">
-                        <span className="font-bold text-stone-900 block text-xs">
-                          {isSr ? "Brzi besplatni vodič (3 koraka):" : "Schnell-Anleitung (3 Schritte):"}
-                        </span>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-stone-900 block text-xs">
+                            {isSr ? "Uputstvo za Supabase (3 koraka):" : "Supabase Anleitung (3 Schritte):"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleCopySqlSnippet}
+                            className="px-2 py-0.5 bg-rose-100 hover:bg-rose-200 text-rose-900 rounded font-bold text-[10px]"
+                          >
+                            📋 {isSr ? "Kopiraj SQL" : "SQL kopieren"}
+                          </button>
+                        </div>
                         <ol className="list-decimal list-inside space-y-1.5 text-[10.5px] leading-relaxed">
                           <li>
                             {isSr ? "Otvori " : "Öffne "}
-                            <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-rose-700 font-bold underline">console.firebase.google.com</a>
-                            {isSr ? " i klikni 'Add project' (nazovi ga npr. zajedno-app)." : " und klicke auf 'Projekt hinzufügen'."}
+                            <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-rose-700 font-bold underline">supabase.com</a>
+                            {isSr ? " i kreiraj besplatan projekat (npr. zajedno-app)." : " und erstelle ein kostenloses Projekt."}
                           </li>
                           <li>
                             {isSr ? "U meniju levo otvori " : "Öffne links "}
-                            <b>Firestore Database</b> → <b>Create database</b> → {isSr ? "izaberi lokaciju i 'Start in test mode'." : "wähle 'Im Testmodus starten'."}
+                            <b>SQL Editor</b>, {isSr ? "zalepi SQL skriptu (dugme iznad) i klikni Run." : "füge das SQL-Skript ein und klicke Run."}
                           </li>
                           <li>
-                            {isSr ? "U Project Settings (zupčanik ⚙️) dodaj Web aplikaciju (</>) i kopiraj prikazani " : "In Projekteinstellungen Web-App (</>) hinzufügen und "}
-                            <code>const firebaseConfig = ...</code> {isSr ? "i zalepi ga ovde!" : "kopieren und hier einfügen!"}
+                            {isSr ? "U " : "Unter "}
+                            <b>Project Settings → API</b> {isSr ? "kopiraj Project URL i anon public key i zalepi ih gore!" : "kopiere Project URL und anon key und füge sie oben ein!"}
                           </li>
                         </ol>
                       </div>
@@ -9858,8 +10473,8 @@
               <div className="space-y-3">
                 <p className="text-[11px] text-stone-500 leading-relaxed">
                   {isSr
-                    ? "Ako nemate internet ili Firebase, možete ručno preneti podatke kopiranjem ovog koda preko WhatsApp-a:"
-                    : "Falls ihr kein Internet oder Firebase habt, könnt ihr Daten manuell per WhatsApp-Code übertragen:"}
+                    ? "Ako nemate internet ili Supabase, možete ručno preneti podatke kopiranjem ovog koda preko WhatsApp-a:"
+                    : "Falls ihr kein Internet oder Supabase habt, könnt ihr Daten manuell per WhatsApp-Code übertragen:"}
                 </p>
                 <textarea readOnly value={code} rows="3" className="w-full p-2 bg-stone-100 rounded-xl font-mono text-[10px] select-all border border-stone-200" />
                 <div className="flex items-center justify-between pt-1">
@@ -9873,8 +10488,8 @@
               </div>
             )}
 
-            <div className="flex justify-end pt-2 border-t border-rose-50">
-              <button onClick={onClose} className="px-4 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-semibold transition">
+            <div className="pt-2 border-t border-rose-50">
+              <button onClick={onClose} className="w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-semibold transition">
                 {isSr ? "Zatvori" : "Schliessen"}
               </button>
             </div>
@@ -9883,8 +10498,7 @@
       );
     }
 
-    // =========================================================================
-    // MAIN APP COMPONENT (TOP BAR CHROME & NAVIGATION)
+ (TOP BAR CHROME & NAVIGATION)
     // =========================================================================
     function App() {
       const [currentUser, setCurrentUser] = useState(() => localStorage.getItem("pro_couple_user") || "radoica");
@@ -9939,204 +10553,298 @@
       const [isEditReunionOpen, setIsEditReunionOpen] = useState(false);
       const [isSyncOpen, setIsSyncOpen] = useState(false);
 
-      // Firebase Real-time Cloud Synchronization
-      const [firebaseConfig, setFirebaseConfig] = useState(() => {
-        if (typeof EMBEDDED_FIREBASE_CONFIG !== 'undefined' && EMBEDDED_FIREBASE_CONFIG && EMBEDDED_FIREBASE_CONFIG.projectId) {
-          return EMBEDDED_FIREBASE_CONFIG;
-        }
+      // Supabase Real-Time Cloud Synchronization
+      const [supabaseConfig, setSupabaseConfig] = useState(() => {
         try {
-          const stored = localStorage.getItem("zajedno_firebase_config");
-          return stored ? JSON.parse(stored) : null;
-        } catch (e) {
-          return null;
+          const stored = localStorage.getItem("zajedno_supabase_config");
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed && parsed.url && parsed.anonKey) return parsed;
+          }
+        } catch (e) {}
+        if (
+          typeof SUPABASE_CONFIG !== 'undefined' &&
+          SUPABASE_CONFIG &&
+          SUPABASE_CONFIG.url &&
+          SUPABASE_CONFIG.url !== "YOUR_SUPABASE_URL" &&
+          SUPABASE_CONFIG.anonKey &&
+          SUPABASE_CONFIG.anonKey !== "YOUR_SUPABASE_ANON_KEY"
+        ) {
+          return SUPABASE_CONFIG;
         }
+        return null;
       });
 
       const [cloudSyncStatus, setCloudSyncStatus] = useState("disconnected"); // 'disconnected', 'connecting', 'connected', 'error'
       const [lastCloudSync, setLastCloudSync] = useState(null);
       const [cloudUpdatedBy, setCloudUpdatedBy] = useState(null);
-      const firestoreDbRef = useRef(null);
 
-      const extractCustomCards = (vocabList) =>
-        (vocabList || []).filter(w => w && w.id && String(w.id).startsWith("custom-"));
-
-      const customCardsSignature = (list) =>
-        JSON.stringify((list || []).map(c => ({
-          id: c.id, sr: c.sr, de: c.de, srCyr: c.srCyr, cat: c.cat,
-          exSr: c.exSr, exDe: c.exDe, notes: c.notes, photo: c.photo, createdBy: c.createdBy
-        })));
+      const supabaseClientRef = useRef(null);
+      const realtimeChannelRef = useRef(null);
+      const isRemoteUpdateRef = useRef(false);
+      const clientIdRef = useRef('client_' + Math.random().toString(36).slice(2) + Date.now().toString(36));
 
       const prevTasksRef = useRef(tasks);
       const prevBooksRef = useRef(books);
       const prevReunionRef = useRef(reunion);
       const prevLoveNoteRef = useRef(loveNote);
-      const prevCustomCardsRef = useRef(extractCustomCards(vocabulary));
+      const prevVocabularyRef = useRef(vocabulary);
+      const prevMissionsRef = useRef(dailyMissions);
+      const pushTimeoutRef = useRef(null);
 
-      // Initialize Firebase on mount or when firebaseConfig changes
+      // Initialize Supabase client and subscribe to real-time postgres_changes
       useEffect(() => {
-        if (!firebaseConfig || !firebaseConfig.projectId || typeof firebase === 'undefined') {
+        if (!supabaseConfig || !supabaseConfig.url || !supabaseConfig.anonKey || typeof window.supabase === 'undefined') {
           setCloudSyncStatus("disconnected");
           return;
         }
 
+        let isMounted = true;
+        setCloudSyncStatus("connecting");
+
         try {
-          setCloudSyncStatus("connecting");
-          let appInstance;
-          if (firebase.apps && firebase.apps.length > 0) {
-            appInstance = firebase.apps[0];
-          } else {
-            appInstance = firebase.initializeApp(firebaseConfig);
-          }
-          const db = firebase.firestore();
-          firestoreDbRef.current = db;
+          const client = window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey, {
+            auth: { persistSession: false }
+          });
+          supabaseClientRef.current = client;
 
-          try {
-            db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
-          } catch (e) {}
+          // 1. Initial fetch & seed row if not exists
+          async function initData() {
+            try {
+              const { data, error } = await client
+                .from('zajedno_state')
+                .select('*')
+                .eq('id', 'radoica-malak')
+                .maybeSingle();
 
-          const docRef = db.collection("zajedno").doc("shared_state");
+              if (!isMounted) return;
 
-          const unsubscribe = docRef.onSnapshot(
-            (snapshot) => {
-              if (snapshot.exists) {
-                const data = snapshot.data();
-                if (data.tasks !== undefined) {
-                  prevTasksRef.current = data.tasks;
+              if (error) {
+                console.warn("Supabase fetch error:", error);
+                setCloudSyncStatus("error");
+                return;
+              }
+
+              if (data) {
+                isRemoteUpdateRef.current = true;
+                if (Array.isArray(data.vocabulary) && data.vocabulary.length > 0) {
+                  setVocabulary(data.vocabulary);
+                  prevVocabularyRef.current = data.vocabulary;
+                }
+                if (data.tasks !== undefined && Array.isArray(data.tasks)) {
                   setTasks(data.tasks);
+                  prevTasksRef.current = data.tasks;
                 }
-                if (data.books !== undefined) {
-                  prevBooksRef.current = data.books;
+                if (data.books !== undefined && Array.isArray(data.books)) {
                   setBooks(data.books);
+                  prevBooksRef.current = data.books;
                 }
-                if (data.reunion !== undefined) {
-                  prevReunionRef.current = data.reunion;
+                if (data.reunion !== undefined && data.reunion && Object.keys(data.reunion).length > 0) {
                   setReunion(data.reunion);
+                  prevReunionRef.current = data.reunion;
                 }
-                if (data.loveNote !== undefined) {
-                  prevLoveNoteRef.current = data.loveNote;
-                  setLoveNote(data.loveNote);
+                if (data.love_note !== undefined && data.love_note && Object.keys(data.love_note).length > 0) {
+                  setLoveNote(data.love_note);
+                  prevLoveNoteRef.current = data.love_note;
                 }
-                if (Array.isArray(data.customCards)) {
-                  const remoteSig = customCardsSignature(data.customCards);
-                  if (remoteSig !== customCardsSignature(prevCustomCardsRef.current)) {
-                    prevCustomCardsRef.current = data.customCards;
-                    setVocabulary(prev => {
-                      const builtIn = prev.filter(w => !w || !w.id || !String(w.id).startsWith("custom-"));
-                      const existingCustomMap = new Map(
-                        prev.filter(w => w && w.id && String(w.id).startsWith("custom-")).map(w => [w.id, w])
-                      );
-                      const mergedCustom = data.customCards.map(rc => {
-                        const local = existingCustomMap.get(rc.id);
-                        return local
-                          ? {
-                              ...rc,
-                              starred: local.starred,
-                              fsrsState: local.fsrsState,
-                              fsrsStability: local.fsrsStability,
-                              fsrsDifficulty: local.fsrsDifficulty,
-                              fsrsReps: local.fsrsReps,
-                              fsrsLapses: local.fsrsLapses,
-                              fsrsDue: local.fsrsDue,
-                              learnedRadoica: local.learnedRadoica,
-                              learnedMalak: local.learnedMalak
-                            }
-                          : rc;
-                      });
-                      return [...mergedCustom, ...builtIn];
-                    });
-                  }
+                if (data.daily_missions !== undefined && Array.isArray(data.daily_missions)) {
+                  setDailyMissions(data.daily_missions);
+                  prevMissionsRef.current = data.daily_missions;
                 }
-                if (data.updatedBy) {
-                  setCloudUpdatedBy(data.updatedBy);
-                }
+                if (data.updated_by) setCloudUpdatedBy(data.updated_by);
+                setLastCloudSync(new Date(data.updated_at || Date.now()));
                 setCloudSyncStatus("connected");
-                setLastCloudSync(new Date());
               } else {
-                const initialCustom = extractCustomCards(vocabulary);
-                prevCustomCardsRef.current = initialCustom;
-                docRef.set({
-                  tasks,
-                  books,
-                  reunion,
-                  loveNote,
-                  customCards: initialCustom,
-                  updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                  updatedBy: currentUser === 'radoica' ? 'Radoica' : 'Malak'
-                }, { merge: true }).then(() => {
+                // Seed initial private couple room row
+                const seedRow = {
+                  id: 'radoica-malak',
+                  vocabulary: vocabulary && vocabulary.length > 0 ? vocabulary : SEED_VOCABULARY,
+                  tasks: tasks || SEED_TASKS,
+                  books: books || SEED_BOOKS,
+                  reunion: reunion || SEED_REUNION,
+                  love_note: loveNote || SEED_LOVE_NOTE,
+                  daily_missions: dailyMissions || [],
+                  client_id: clientIdRef.current,
+                  updated_at: new Date().toISOString(),
+                  updated_by: currentUser === 'radoica' ? 'Radoica' : 'Malak'
+                };
+                const { error: seedErr } = await client.from('zajedno_state').upsert(seedRow);
+                if (seedErr) {
+                  console.warn("Supabase initial seed error:", seedErr);
+                } else {
                   setCloudSyncStatus("connected");
                   setLastCloudSync(new Date());
-                });
+                }
               }
-            },
-            (error) => {
-              console.warn("Firestore listener warning:", error);
-              setCloudSyncStatus("error");
+            } catch (err) {
+              console.warn("Supabase initData exception:", err);
+              if (isMounted) setCloudSyncStatus("error");
             }
-          );
+          }
+
+          initData();
+
+          // 2. Real-time Subscription to postgres_changes
+          const channel = client
+            .channel('zajedno_realtime_' + Date.now())
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'zajedno_state',
+                filter: 'id=eq.radoica-malak'
+              },
+              (payload) => {
+                const row = payload.new;
+                if (!row) return;
+
+                // Loop prevention: ignore our own broadcast
+                if (row.client_id && row.client_id === clientIdRef.current) {
+                  setLastCloudSync(new Date(row.updated_at || Date.now()));
+                  return;
+                }
+
+                isRemoteUpdateRef.current = true;
+
+                if (Array.isArray(row.vocabulary) && row.vocabulary.length > 0) {
+                  setVocabulary(row.vocabulary);
+                  prevVocabularyRef.current = row.vocabulary;
+                }
+                if (row.tasks !== undefined && Array.isArray(row.tasks)) {
+                  setTasks(row.tasks);
+                  prevTasksRef.current = row.tasks;
+                }
+                if (row.books !== undefined && Array.isArray(row.books)) {
+                  setBooks(row.books);
+                  prevBooksRef.current = row.books;
+                }
+                if (row.reunion !== undefined && row.reunion && Object.keys(row.reunion).length > 0) {
+                  setReunion(row.reunion);
+                  prevReunionRef.current = row.reunion;
+                }
+                if (row.love_note !== undefined && row.love_note && Object.keys(row.love_note).length > 0) {
+                  setLoveNote(row.love_note);
+                  prevLoveNoteRef.current = row.love_note;
+                }
+                if (row.daily_missions !== undefined && Array.isArray(row.daily_missions)) {
+                  setDailyMissions(row.daily_missions);
+                  prevMissionsRef.current = row.daily_missions;
+                }
+                if (row.updated_by) setCloudUpdatedBy(row.updated_by);
+                setLastCloudSync(new Date(row.updated_at || Date.now()));
+                setCloudSyncStatus("connected");
+              }
+            )
+            .subscribe((status) => {
+              if (status === 'SUBSCRIBED') {
+                setCloudSyncStatus("connected");
+              } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+                console.warn("Supabase channel status:", status);
+              }
+            });
+
+          realtimeChannelRef.current = channel;
 
           return () => {
-            if (unsubscribe) unsubscribe();
+            isMounted = false;
+            if (channel) client.removeChannel(channel);
           };
         } catch (err) {
-          console.error("Firebase init failed:", err);
+          console.error("Supabase connection failed:", err);
           setCloudSyncStatus("error");
         }
-      }, [firebaseConfig]);
+      }, [supabaseConfig]);
 
-      // Push local user changes to Cloud Firestore
+      // Push local user changes to Supabase Realtime (with infinite loop prevention)
       useEffect(() => {
-        const updates = {};
+        if (isRemoteUpdateRef.current) {
+          isRemoteUpdateRef.current = false;
+          return;
+        }
+
+        let hasChanges = false;
         if (JSON.stringify(prevTasksRef.current) !== JSON.stringify(tasks)) {
-          updates.tasks = tasks;
           prevTasksRef.current = tasks;
+          hasChanges = true;
         }
         if (JSON.stringify(prevBooksRef.current) !== JSON.stringify(books)) {
-          updates.books = books;
           prevBooksRef.current = books;
+          hasChanges = true;
         }
         if (JSON.stringify(prevReunionRef.current) !== JSON.stringify(reunion)) {
-          updates.reunion = reunion;
           prevReunionRef.current = reunion;
+          hasChanges = true;
         }
         if (JSON.stringify(prevLoveNoteRef.current) !== JSON.stringify(loveNote)) {
-          updates.loveNote = loveNote;
           prevLoveNoteRef.current = loveNote;
+          hasChanges = true;
         }
-        const currentCustom = extractCustomCards(vocabulary);
-        if (customCardsSignature(prevCustomCardsRef.current) !== customCardsSignature(currentCustom)) {
-          updates.customCards = currentCustom;
-          prevCustomCardsRef.current = currentCustom;
+        if (JSON.stringify(prevVocabularyRef.current) !== JSON.stringify(vocabulary)) {
+          prevVocabularyRef.current = vocabulary;
+          hasChanges = true;
+        }
+        if (JSON.stringify(prevMissionsRef.current) !== JSON.stringify(dailyMissions)) {
+          prevMissionsRef.current = dailyMissions;
+          hasChanges = true;
         }
 
-        if (Object.keys(updates).length > 0 && firestoreDbRef.current && cloudSyncStatus === "connected") {
-          firestoreDbRef.current.collection("zajedno").doc("shared_state").set({
-            ...updates,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            updatedBy: currentUser === 'radoica' ? 'Radoica' : 'Malak'
-          }, { merge: true }).then(() => {
-            setLastCloudSync(new Date());
-          }).catch(err => {
-            console.warn("Cloud sync write error:", err);
-          });
+        if (hasChanges && supabaseClientRef.current && cloudSyncStatus === "connected") {
+          if (pushTimeoutRef.current) clearTimeout(pushTimeoutRef.current);
+          pushTimeoutRef.current = setTimeout(async () => {
+            try {
+              const payload = {
+                id: 'radoica-malak',
+                vocabulary,
+                tasks,
+                books,
+                reunion,
+                love_note: loveNote,
+                daily_missions: dailyMissions || [],
+                client_id: clientIdRef.current,
+                updated_at: new Date().toISOString(),
+                updated_by: currentUser === 'radoica' ? 'Radoica' : 'Malak'
+              };
+              const { error } = await supabaseClientRef.current
+                .from('zajedno_state')
+                .upsert(payload);
+              if (!error) {
+                setLastCloudSync(new Date());
+              } else {
+                console.warn("Supabase push error:", error);
+              }
+            } catch (e) {
+              console.warn("Supabase push exception:", e);
+            }
+          }, 350);
         }
-      }, [tasks, books, reunion, loveNote, vocabulary, cloudSyncStatus, currentUser]);
+      }, [tasks, books, reunion, loveNote, vocabulary, dailyMissions, cloudSyncStatus, currentUser]);
 
-      const handleManualCloudPush = () => {
-        if (!firestoreDbRef.current) return;
-        const currentCustom = extractCustomCards(vocabulary);
-        prevCustomCardsRef.current = currentCustom;
-        firestoreDbRef.current.collection("zajedno").doc("shared_state").set({
-          tasks,
-          books,
-          reunion,
-          loveNote,
-          customCards: currentCustom,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          updatedBy: currentUser === 'radoica' ? 'Radoica' : 'Malak'
-        }, { merge: true }).then(() => {
+      const handleManualCloudPush = async () => {
+        if (!supabaseClientRef.current) {
+          alert(isSr ? "Supabase oblak nije povezan." : "Supabase Cloud ist nicht verbunden.");
+          return;
+        }
+        try {
+          const payload = {
+            id: 'radoica-malak',
+            vocabulary,
+            tasks,
+            books,
+            reunion,
+            love_note: loveNote,
+            daily_missions: dailyMissions || [],
+            client_id: clientIdRef.current,
+            updated_at: new Date().toISOString(),
+            updated_by: currentUser === 'radoica' ? 'Radoica' : 'Malak'
+          };
+          const { error } = await supabaseClientRef.current.from('zajedno_state').upsert(payload);
+          if (error) throw error;
           setLastCloudSync(new Date());
-          alert(isSr ? "Podaci uspešno poslati u oblak!" : "Daten erfolgreich in die Cloud synchronisiert!");
-        });
+          alert(isSr ? "Podaci uspešno poslati na Supabase oblak!" : "Daten erfolgreich in die Supabase Cloud synchronisiert!");
+        } catch (e) {
+          alert((isSr ? "Greška pri sinhronizaciji: " : "Fehler beim Synchronisieren: ") + e.message);
+        }
       };
 
       useEffect(() => {
@@ -10251,11 +10959,24 @@
 
                 <button 
                   onClick={() => setIsSyncOpen(true)}
-                  className={`p-1.5 rounded-xl border transition flex items-center space-x-1 ${cloudSyncStatus === 'connected' ? 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-2xs' : 'hover:bg-rose-50 border-rose-100 text-stone-500'}`}
-                  title={isSr ? (cloudSyncStatus === 'connected' ? "Oblak aktivan (Uživo)" : "Sinhronizacija telefona") : (cloudSyncStatus === 'connected' ? "Cloud Live aktiv" : "Handy-Synchronisation")}
+                  className={`px-2.5 py-1.5 rounded-xl border transition flex items-center space-x-1.5 text-[11px] font-bold ${
+                    cloudSyncStatus === 'connected' 
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-2xs hover:bg-emerald-100/70' 
+                      : 'bg-stone-50 hover:bg-stone-100 border-stone-200 text-stone-500'
+                  }`}
+                  title={isSr ? (cloudSyncStatus === 'connected' ? "Supabase Uživo aktivan" : "Sinhronizacija / Offline") : (cloudSyncStatus === 'connected' ? "Supabase Live aktiv" : "Synchronisation / Offline")}
                 >
-                  <span>{cloudSyncStatus === 'connected' ? "☁️" : "📱"}</span>
-                  {cloudSyncStatus === 'connected' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}
+                  {cloudSyncStatus === 'connected' ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="text-emerald-700 font-bold">☁️ Live Sync</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-stone-400"></span>
+                      <span className="text-stone-500 font-medium">📴 Offline</span>
+                    </>
+                  )}
                 </button>
 
               </div>
@@ -10454,14 +11175,14 @@
                 if (d.loveNote) setLoveNote(d.loveNote);
                 setIsSyncOpen(false);
               }}
-              firebaseConfig={firebaseConfig}
-              onSaveFirebaseConfig={(cfg) => {
-                localStorage.setItem("zajedno_firebase_config", JSON.stringify(cfg));
-                setFirebaseConfig(cfg);
+              supabaseConfig={supabaseConfig}
+              onSaveSupabaseConfig={(cfg) => {
+                localStorage.setItem("zajedno_supabase_config", JSON.stringify(cfg));
+                setSupabaseConfig(cfg);
               }}
-              onDisconnectFirebase={() => {
-                localStorage.removeItem("zajedno_firebase_config");
-                setFirebaseConfig(null);
+              onDisconnectSupabase={() => {
+                localStorage.removeItem("zajedno_supabase_config");
+                setSupabaseConfig(null);
                 setCloudSyncStatus("disconnected");
               }}
               cloudSyncStatus={cloudSyncStatus}
