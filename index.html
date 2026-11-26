@@ -6076,6 +6076,61 @@
       };
     }
 
+    function normalizeForTranslationSearch(str) {
+      if (!str) return "";
+      return cyrillicToLatin(str)
+        .toLowerCase()
+        .replace(/đ/g, "d")
+        .replace(/dj/g, "d")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+    }
+
+    // Hybrid Translation Pipeline: Instant local deck lookup -> MyMemory API fallback
+    async function translateBilingual(text, sourceLang, targetLang, vocabulary = [], signal = null) {
+      const trimmed = (text || "").trim();
+      if (!trimmed) return null;
+
+      const q = normalizeForTranslationSearch(trimmed);
+      // 1. Check local dictionary
+      if (Array.isArray(vocabulary) && vocabulary.length > 0) {
+        for (const w of vocabulary) {
+          if (!w) continue;
+          const matchField = sourceLang === "sr" ? w.sr : w.de;
+          const returnField = sourceLang === "sr" ? w.de : w.sr;
+          if (normalizeForTranslationSearch(matchField) === q) {
+            return {
+              translatedText: returnField,
+              source: "dictionary"
+            };
+          }
+        }
+      }
+
+      // 2. Online MyMemory API
+      if (!navigator.onLine) return null;
+
+      try {
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(trimmed)}&langpair=${sourceLang}|${targetLang}`;
+        const res = await fetch(url, { signal });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const raw = data && data.responseData && data.responseData.translatedText;
+        if (raw) {
+          const doc = new DOMParser().parseFromString(raw, 'text/html');
+          const cleanText = doc.body.textContent || raw;
+          return {
+            translatedText: cleanText.trim(),
+            source: "mymemory"
+          };
+        }
+      } catch (err) {
+        // Aborted or network error
+      }
+      return null;
+    }
+
     function buildSpellingGuide(word, isSr) {
       if (!word) return [];
       const cleanWord = word.replace(/[!?.,"]/g, "").trim();
@@ -9127,7 +9182,7 @@
     // =========================================================================
     // ADD CUSTOM FLASHCARD MODAL (BILINGUAL + AUTO CYRILLIC + CLOUD SYNCED)
     // =========================================================================
-    function AddCardModal({ isSr, isRadoica, onClose, onAddCard }) {
+    function AddCardModal({ isSr, isRadoica, onClose, onAddCard, vocabulary = [] }) {
       const [sr, setSr] = useState("");
       const [de, setDe] = useState("");
       const [cat, setCat] = useState("Everyday");
@@ -9135,12 +9190,22 @@
       const [exDe, setExDe] = useState("");
       const [notes, setNotes] = useState("");
 
+      // Translation state
+      const [isTranslating, setIsTranslating] = useState(false);
+      const [activeDirection, setActiveDirection] = useState(() => isRadoica ? "sr-de" : "de-sr");
+      const [lastAutoFilledField, setLastAutoFilledField] = useState(null); // 'de' or 'sr'
+      const [translationSource, setTranslationSource] = useState(null); // 'dictionary' or 'mymemory'
+
       // Phonetic pronunciation & Swiss chip state
       const [srPron, setSrPron] = useState("");
       const [dePron, setDePron] = useState("");
       const [swissChip, setSwissChip] = useState("");
       const [srCyr, setSrCyr] = useState("");
       const [isCustomPron, setIsCustomPron] = useState(false);
+
+      const srDebounceRef = useRef(null);
+      const deDebounceRef = useRef(null);
+      const abortRef = useRef(null);
 
       const categories = [
         "Everyday",
@@ -9153,21 +9218,104 @@
         "Grammar & Questions"
       ];
 
+      // Cleanup timers on unmount
+      useEffect(() => {
+        return () => {
+          if (srDebounceRef.current) clearTimeout(srDebounceRef.current);
+          if (deDebounceRef.current) clearTimeout(deDebounceRef.current);
+          if (abortRef.current) abortRef.current.abort();
+        };
+      }, []);
+
+      const executeTranslation = async (sourceText, fromLang, toLang) => {
+        const clean = (sourceText || "").trim();
+        if (!clean) return;
+
+        if (abortRef.current) abortRef.current.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+
+        setIsTranslating(true);
+        try {
+          const res = await translateBilingual(clean, fromLang, toLang, vocabulary, controller.signal);
+          if (res && res.translatedText) {
+            if (toLang === "de") {
+              setDe(res.translatedText);
+              setLastAutoFilledField("de");
+              if (!isCustomPron) {
+                const pron = generatePronunciationData(clean, res.translatedText);
+                setSrPron(pron.srPron);
+                setDePron(pron.dePron);
+                setSwissChip(pron.swissChip);
+                setSrCyr(pron.srCyr);
+              }
+            } else {
+              setSr(res.translatedText);
+              setLastAutoFilledField("sr");
+              if (!isCustomPron) {
+                const pron = generatePronunciationData(res.translatedText, clean);
+                setSrPron(pron.srPron);
+                setDePron(pron.dePron);
+                setSwissChip(pron.swissChip);
+                setSrCyr(pron.srCyr);
+              }
+            }
+            setTranslationSource(res.source);
+          }
+        } catch (e) {
+          // ignore aborts
+        } finally {
+          setIsTranslating(false);
+        }
+      };
+
       const handleSrChange = (val) => {
         setSr(val);
+        setActiveDirection("sr-de");
+        if (lastAutoFilledField === "sr") setLastAutoFilledField(null);
+
         if (!isCustomPron) {
           const pron = generatePronunciationData(val, de);
           setSrPron(pron.srPron);
           setSwissChip(pron.swissChip);
           setSrCyr(pron.srCyr);
         }
+
+        if (srDebounceRef.current) clearTimeout(srDebounceRef.current);
+        if (val.trim().length >= 2 && (!de.trim() || lastAutoFilledField === "de")) {
+          srDebounceRef.current = setTimeout(() => {
+            executeTranslation(val, "sr", "de");
+          }, 700);
+        }
       };
 
       const handleDeChange = (val) => {
         setDe(val);
+        setActiveDirection("de-sr");
+        if (lastAutoFilledField === "de") setLastAutoFilledField(null);
+
         if (!isCustomPron) {
           const pron = generatePronunciationData(sr, val);
           setDePron(pron.dePron);
+        }
+
+        if (deDebounceRef.current) clearTimeout(deDebounceRef.current);
+        if (val.trim().length >= 2 && (!sr.trim() || lastAutoFilledField === "sr")) {
+          deDebounceRef.current = setTimeout(() => {
+            executeTranslation(val, "de", "sr");
+          }, 700);
+        }
+      };
+
+      const handleSwapDirection = () => {
+        setActiveDirection(prev => prev === "sr-de" ? "de-sr" : "sr-de");
+      };
+
+      const handleManualTranslateNow = () => {
+        if (activeDirection === "sr-de") {
+          if (sr.trim()) executeTranslation(sr, "sr", "de");
+        } else {
+          if (de.trim()) executeTranslation(de, "de", "sr");
         }
       };
 
@@ -9238,16 +9386,61 @@
                   <span>{isSr ? "Dodaj novu fleš karticu" : "Neue Karteikarte hinzufügen"}</span>
                 </h3>
                 <p className="text-[11px] text-stone-400 mt-0.5">
-                  {isSr ? "Automatski generiše fonetski izgovor i sinhronizuje se uživo ☁️" : "Erzeugt phonetische Aussprache automatisch und synchronisiert live ☁️"}
+                  {isSr ? "Automatski prevod ↔ fonetski izgovor ↔ Supabase oblak ☁️" : "Automatische Übersetzung ↔ Phonetische Aussprache ↔ Supabase Cloud ☁️"}
                 </p>
               </div>
               <button type="button" onClick={onClose} className="p-1 text-stone-400 hover:text-stone-700 text-sm font-bold">✕</button>
             </div>
 
+            {/* Translation Toolbar Pill */}
+            <div className="flex items-center justify-between bg-rose-50/70 p-2 rounded-2xl border border-rose-100 text-[11px]">
+              <div className="flex items-center space-x-1.5 font-bold text-rose-950">
+                <span>{activeDirection === "sr-de" ? "🇷🇸 Srpski → 🇩🇪 Nemački" : "🇩🇪 Nemački → 🇷🇸 Srpski"}</span>
+                <button
+                  type="button"
+                  onClick={handleSwapDirection}
+                  className="px-2 py-0.5 bg-white hover:bg-rose-100 text-rose-800 rounded-lg border border-rose-200 transition text-[10px] font-extrabold"
+                  title={isSr ? "Zameni smer prevoda" : "Richtung wechseln"}
+                >
+                  ⇄ {isSr ? "Zameni" : "Tauschen"}
+                </button>
+              </div>
+
+              <div className="flex items-center space-x-1">
+                {isTranslating ? (
+                  <span className="flex items-center space-x-1 text-rose-700 font-bold text-[10px] animate-pulse">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                    <span>{isSr ? "Prevodi..." : "Übersetzt..."}</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleManualTranslateNow}
+                    disabled={activeDirection === "sr-de" ? !sr.trim() : !de.trim()}
+                    className="px-2.5 py-1 bg-rose-700 hover:bg-rose-800 disabled:opacity-40 text-white rounded-xl font-bold text-[10px] shadow-2xs transition flex items-center space-x-1"
+                  >
+                    <span>✨</span>
+                    <span>{isSr ? "Prevedi sad" : "Jetzt übersetzen"}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-3">
+              {/* Serbian Input */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="font-bold text-stone-700">🇷🇸 {isSr ? "Srpski (obavezno)" : "Serbisch (erforderlich)"}</label>
+                  <div className="flex items-center space-x-1.5">
+                    <label className="font-bold text-stone-700">🇷🇸 {isSr ? "Srpski" : "Serbisch"}</label>
+                    {isTranslating && activeDirection === "de-sr" && (
+                      <span className="text-[10px] text-rose-600 font-medium animate-pulse">✨ prevodim...</span>
+                    )}
+                    {translationSource && lastAutoFilledField === "sr" && (
+                      <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded border border-emerald-200 font-semibold">
+                        {translationSource === "dictionary" ? (isSr ? "Iz rečnika ✓" : "Aus Wörterbuch ✓") : "Auto-prevod ✓"}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex gap-1">
                     {["č", "ć", "ž", "š", "đ"].map(ch => (
                       <button
@@ -9261,19 +9454,42 @@
                     ))}
                   </div>
                 </div>
-                <input
-                  type="text"
-                  required
-                  value={sr}
-                  onChange={e => handleSrChange(e.target.value)}
-                  placeholder={isSr ? "npr. Nedostaješ mi" : "z.B. Nedostaješ mi"}
-                  className="w-full p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={sr}
+                    onChange={e => handleSrChange(e.target.value)}
+                    placeholder={isTranslating && activeDirection === "de-sr" ? (isSr ? "Automatski prevodim sa nemačkog..." : "Wird automatisch übersetzt...") : (isSr ? "npr. Nedostaješ mi (ili unesi nemački ispod)" : "z.B. Nedostaješ mi")}
+                    className="w-full p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                  />
+                  {sr.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => executeTranslation(sr, "sr", "de")}
+                      className="absolute right-2 top-2 text-[10px] px-1.5 py-0.5 bg-rose-100/70 hover:bg-rose-200 text-rose-800 rounded font-semibold transition"
+                      title={isSr ? "Prevedi na nemački" : "Ins Deutsche übersetzen"}
+                    >
+                      ✨ → 🇩🇪
+                    </button>
+                  )}
+                </div>
               </div>
 
+              {/* German Input */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="font-bold text-stone-700">🇩🇪 {isSr ? "Nemački (obavezno)" : "Deutsch (erforderlich)"}</label>
+                  <div className="flex items-center space-x-1.5">
+                    <label className="font-bold text-stone-700">🇩🇪 {isSr ? "Nemački" : "Deutsch"}</label>
+                    {isTranslating && activeDirection === "sr-de" && (
+                      <span className="text-[10px] text-rose-600 font-medium animate-pulse">✨ übersetze...</span>
+                    )}
+                    {translationSource && lastAutoFilledField === "de" && (
+                      <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.2 rounded border border-emerald-200 font-semibold">
+                        {translationSource === "dictionary" ? (isSr ? "Iz rečnika ✓" : "Aus Wörterbuch ✓") : "Auto-übersetzt ✓"}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex gap-1">
                     {["ä", "ö", "ü", "ß"].map(ch => (
                       <button
@@ -9287,14 +9503,26 @@
                     ))}
                   </div>
                 </div>
-                <input
-                  type="text"
-                  required
-                  value={de}
-                  onChange={e => handleDeChange(e.target.value)}
-                  placeholder={isSr ? "npr. Du fehlst mir" : "z.B. Du fehlst mir"}
-                  className="w-full p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={de}
+                    onChange={e => handleDeChange(e.target.value)}
+                    placeholder={isTranslating && activeDirection === "sr-de" ? (isSr ? "Automatski prevodim na nemački..." : "Wird automatisch übersetzt...") : (isSr ? "npr. Du fehlst mir (ili unesi srpski gore)" : "z.B. Du fehlst mir")}
+                    className="w-full p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-1 focus:ring-rose-400"
+                  />
+                  {de.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => executeTranslation(de, "de", "sr")}
+                      className="absolute right-2 top-2 text-[10px] px-1.5 py-0.5 bg-rose-100/70 hover:bg-rose-200 text-rose-800 rounded font-semibold transition"
+                      title={isSr ? "Prevedi na srpski" : "Ins Serbische übersetzen"}
+                    >
+                      ✨ → 🇷🇸
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* ✨ LIVE PRONUNCIATION PREVIEW (PronunciationPill) */}
@@ -9617,6 +9845,7 @@
               isRadoica={isRadoica}
               onClose={() => setIsAddCardOpen(false)}
               onAddCard={handleAddCustomCard}
+              vocabulary={vocabulary}
             />
           )}
 
