@@ -2631,6 +2631,21 @@
         setVocabulary(prev => prev.map(w => w.id === currentCard.id ? { ...w, starred: !w.starred } : w));
       };
 
+      const handleDeleteCurrentCard = (e) => {
+        if (e) e.stopPropagation();
+        if (!currentCard) return;
+        const phrase = isTargetSr ? currentCard.sr : currentCard.de;
+        const confirmMsg = isSr 
+          ? `Da li sigurno želiš da obrišeš karticu "${phrase}"?` 
+          : `Möchtest du die Karte "${phrase}" wirklich löschen?`;
+        if (window.confirm(confirmMsg)) {
+          const cardIdToDelete = currentCard.id;
+          setVocabulary(prev => prev.filter(w => w.id !== cardIdToDelete));
+          setIsFlipped(false);
+          setQueueIndex(prev => (prev >= dueQueue.length - 1 ? Math.max(0, dueQueue.length - 2) : prev));
+        }
+      };
+
       useEffect(() => {
         const handleKeyDown = (e) => {
           if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
@@ -2734,13 +2749,23 @@
                     </span>
                   </div>
 
-                  <button 
-                    onClick={handleToggleStar}
-                    className={`p-1.5 rounded-lg text-sm transition ${currentCard.starred ? 'text-amber-500 bg-amber-50' : 'text-stone-300 hover:text-stone-500'}`}
-                    title={isSr ? "Označi zvezdicom" : "Favorit"}
-                  >
-                    ★
-                  </button>
+                  <div className="flex items-center space-x-1">
+                    <button 
+                      type="button"
+                      onClick={handleDeleteCurrentCard}
+                      className="p-1.5 rounded-lg text-sm text-stone-300 hover:text-red-500 hover:bg-red-50 transition"
+                      title={isSr ? "Obriši ovu karticu" : "Diese Karte löschen"}
+                    >
+                      🗑️
+                    </button>
+                    <button 
+                      onClick={handleToggleStar}
+                      className={`p-1.5 rounded-lg text-sm transition ${currentCard.starred ? 'text-amber-500 bg-amber-50' : 'text-stone-300 hover:text-stone-500'}`}
+                      title={isSr ? "Označi zvezdicom" : "Favorit"}
+                    >
+                      ★
+                    </button>
+                  </div>
                 </div>
 
                 <div className="text-center py-6 space-y-4 relative z-10 my-auto">
@@ -2785,13 +2810,23 @@
                     </span>
                   </div>
 
-                  <button 
-                    onClick={handleToggleStar}
-                    className={`p-1.5 rounded-lg text-sm transition ${currentCard.starred ? 'text-amber-500 bg-amber-50' : 'text-stone-300 hover:text-stone-500'}`}
-                    title={isSr ? "Označi zvezdicom" : "Favorit"}
-                  >
-                    ★
-                  </button>
+                  <div className="flex items-center space-x-1">
+                    <button 
+                      type="button"
+                      onClick={handleDeleteCurrentCard}
+                      className="p-1.5 rounded-lg text-sm text-stone-300 hover:text-red-500 hover:bg-red-50 transition"
+                      title={isSr ? "Obriši ovu karticu" : "Diese Karte löschen"}
+                    >
+                      🗑️
+                    </button>
+                    <button 
+                      onClick={handleToggleStar}
+                      className={`p-1.5 rounded-lg text-sm transition ${currentCard.starred ? 'text-amber-500 bg-amber-50' : 'text-stone-300 hover:text-stone-500'}`}
+                      title={isSr ? "Označi zvezdicom" : "Favorit"}
+                    >
+                      ★
+                    </button>
+                  </div>
                 </div>
 
                 <div className="text-center py-2 space-y-3 relative z-10 my-auto">
@@ -4016,21 +4051,20 @@
                             <div className="flex items-center space-x-1.5">
                               {isLearned && <span className="text-[10px] text-emerald-600 font-bold">✓</span>}
                               {w.starred && <span className="text-amber-500 text-xs">★</span>}
-                              {isCustom && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (confirm(isSr ? `Obrisati karticu "${w.sr} / ${w.de}"?` : `Karte "${w.sr} / ${w.de}" löschen?`)) {
-                                      setVocabulary(prev => prev.filter(item => item.id !== w.id));
-                                    }
-                                  }}
-                                  className="text-stone-300 hover:text-rose-600 text-xs font-bold p-0.5 leading-none transition"
-                                  title={isSr ? "Obriši karticu" : "Karte löschen"}
-                                >
-                                  ✕
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const phrase = isTargetSr ? `${w.de} / ${w.sr}` : `${w.sr} / ${w.de}`;
+                                  if (window.confirm(isSr ? `Da li sigurno želiš da obrišeš karticu "${phrase}"?` : `Möchtest du die Karte "${phrase}" wirklich löschen?`)) {
+                                    setVocabulary(prev => prev.filter(item => item.id !== w.id));
+                                  }
+                                }}
+                                className="p-1 rounded-lg text-stone-300 hover:text-red-500 hover:bg-red-50 text-xs transition"
+                                title={isSr ? "Obriši karticu" : "Karte löschen"}
+                              >
+                                🗑️
+                              </button>
                             </div>
                           </div>
 
@@ -4061,7 +4095,23 @@
                             <span className="text-[10px] font-bold text-rose-800">
                               {isTargetSr ? (isSr ? "Srpski" : "Serbisch") : (isSr ? "Nemački" : "Deutsch")}
                             </span>
-                            <span className="text-[10px] text-stone-400 font-medium">{isTargetSr && w.srCyr ? w.srCyr : (isSr ? "Preokrenuto" : "Umgedreht")}</span>
+                            <div className="flex items-center space-x-1.5">
+                              <span className="text-[10px] text-stone-400 font-medium">{isTargetSr && w.srCyr ? w.srCyr : (isSr ? "Preokrenuto" : "Umgedreht")}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const phrase = isTargetSr ? `${w.de} / ${w.sr}` : `${w.sr} / ${w.de}`;
+                                  if (window.confirm(isSr ? `Da li sigurno želiš da obrišeš karticu "${phrase}"?` : `Möchtest du die Karte "${phrase}" wirklich löschen?`)) {
+                                    setVocabulary(prev => prev.filter(item => item.id !== w.id));
+                                  }
+                                }}
+                                className="p-1 rounded-lg text-stone-400 hover:text-red-500 hover:bg-red-50 text-xs transition"
+                                title={isSr ? "Obriši karticu" : "Karte löschen"}
+                              >
+                                🗑️
+                              </button>
+                            </div>
                           </div>
 
                           <div className="text-center space-y-1.5 relative z-10 my-auto py-1">
