@@ -4509,7 +4509,7 @@
     // ⚡ SUPABASE REAL-TIME CLOUD CONFIGURATION
     // =========================================================================
     const SUPABASE_CONFIG = {
-      url: "https://botevcinzjqksuxrvynd.supabase.co/rest/v1/",
+      url: "https://botevcinzjqksuxrvynd.supabase.co",
       anonKey: "sb_publishable_g-oBy_8gAXS1dCuf7qAOkw_10b7cAir"
     };
 
@@ -10449,7 +10449,7 @@
       const handleSaveConfig = (e) => {
         e.preventDefault();
         setErrorMsg("");
-        const cleanUrl = urlInput.trim();
+        const cleanUrl = urlInput.trim().replace(/\/rest\/v1\/?$/i, "").replace(/\/+$/, "");
         const cleanKey = keyInput.trim();
 
         if (!cleanUrl || !cleanKey) {
@@ -10833,7 +10833,8 @@ end;
         setCloudSyncStatus("connecting");
 
         try {
-          const client = window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey, {
+          const rawUrl = (supabaseConfig.url || "").trim().replace(/\/rest\/v1\/?$/i, "").replace(/\/+$/, "");
+          const client = window.supabase.createClient(rawUrl, (supabaseConfig.anonKey || "").trim(), {
             auth: { persistSession: false }
           });
           supabaseClientRef.current = client;
