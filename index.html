@@ -2,7 +2,7 @@
 <html lang="sr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Zajedno / Zusammen — Radoica & Malak</title>
   
   <!-- PWA & Mobile Meta Tags -->
@@ -58,6 +58,38 @@
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
   <style>
+    /* Strict Mobile-First Portrait Viewport & Box Model */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      max-width: 100%;
+    }
+    html, body {
+      max-width: 100vw;
+      width: 100%;
+      overflow-x: hidden !important;
+      overscroll-behavior-x: none;
+      touch-action: pan-y;
+      margin: 0;
+      padding: 0;
+      -webkit-text-size-adjust: 100%;
+      background-color: #f7f6f4;
+    }
+    #root {
+      max-width: 100vw;
+      width: 100%;
+      overflow-x: hidden !important;
+      min-height: 100dvh;
+    }
+    img, svg, video, canvas, audio, iframe, embed, object {
+      max-width: 100%;
+      height: auto;
+    }
+    /* Prevent iOS Safari auto-zoom on input focus */
+    @media (max-width: 640px) {
+      input[type="text"], input[type="search"], input[type="password"], input[type="date"], textarea, select {
+        font-size: 16px !important;
+      }
+    }
     body {
       -webkit-tap-highlight-color: transparent;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -128,10 +160,10 @@
     .has-stack::before {
       content: "";
       position: absolute;
-      top: 5px;
-      left: 5px;
-      right: -5px;
-      bottom: -5px;
+      top: 4px;
+      left: 3px;
+      right: 3px;
+      bottom: -4px;
       background: #fce8ec;
       border-radius: 1.25rem;
       z-index: -1;
@@ -142,10 +174,10 @@
     .has-stack::after {
       content: "";
       position: absolute;
-      top: 10px;
-      left: 10px;
-      right: -10px;
-      bottom: -10px;
+      top: 7px;
+      left: 6px;
+      right: 6px;
+      bottom: -7px;
       background: #fdf4f6;
       border-radius: 1.25rem;
       z-index: -2;
@@ -2040,7 +2072,7 @@
     function GrammarSpotlight({ selectedWord, onClose, isSr = true }) {
       if (!selectedWord) return null;
       return (
-        <div className="sticky bottom-4 z-40 bg-white/95 backdrop-blur-md border border-rose-200 p-3.5 rounded-2xl shadow-lg flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2">
+        <div className="sticky bottom-16 z-30 bg-white/95 backdrop-blur-md border border-rose-200 p-3 rounded-2xl shadow-lg flex items-center justify-between gap-2 animate-in fade-in slide-in-from-bottom-2 max-w-full">
           <div className="space-y-1">
             <div className="flex items-center space-x-2">
               <span className="font-bold text-stone-900 text-sm">{selectedWord.word}</span>
@@ -2237,7 +2269,7 @@
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <div className="grid grid-cols-1 gap-2 text-xs">
                 <button 
                   onClick={() => onNavigateSubTab("review")}
                   className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between ${dailyMissions?.review ? 'bg-emerald-50 border-emerald-200 text-emerald-900 font-bold' : 'bg-white border-rose-100 text-stone-700 hover:bg-rose-50'}`}
@@ -2400,7 +2432,7 @@
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-2.5">
               {todayWords.length === 0 ? (
                 <div className="col-span-full p-6 text-center bg-stone-50/80 rounded-2xl border border-stone-200/70 space-y-2">
                   <span className="text-2xl block">🎴</span>
@@ -2655,7 +2687,7 @@
       }
 
       return (
-        <div className="space-y-4 max-w-lg mx-auto">
+        <div className="space-y-3 w-full max-w-full">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 font-semibold px-2">
             <span className="flex items-center space-x-1.5">
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
@@ -2718,7 +2750,7 @@
                       : (isSr ? "Srpski original:" : "Serbisch:")}
                   </span>
 
-                  <h2 className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight break-words px-1">
                     {isTargetSr ? currentCard.de : currentCard.sr}
                   </h2>
 
@@ -2763,7 +2795,7 @@
                 </div>
 
                 <div className="text-center py-2 space-y-3 relative z-10 my-auto">
-                  <h2 className="text-2xl sm:text-3xl font-black text-rose-950 tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-black text-rose-950 tracking-tight break-words px-1">
                     {isTargetSr ? currentCard.sr : currentCard.de}
                   </h2>
                   {isTargetSr && currentCard.srCyr && (
@@ -2801,37 +2833,37 @@
           </div>
 
           {isFlipped ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 animate-in fade-in slide-in-from-bottom-2">
+            <div className="grid grid-cols-4 gap-1.5 pt-2 animate-in fade-in slide-in-from-bottom-2">
               <button
                 onClick={() => handleGrade(1)}
-                className="p-3 bg-red-50 hover:bg-red-100 border border-red-200 text-red-900 rounded-2xl text-center transition active:scale-95 shadow-2xs"
+                className="p-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-900 rounded-xl text-center transition active:scale-95 shadow-2xs"
               >
-                <span className="block font-bold text-xs">{isSr ? "Zaboravio [1]" : "Vergessen [1]"}</span>
-                <span className="block text-[10px] text-red-600 mt-0.5 font-semibold">{isSr ? "za 10 min" : "in 10 Min."}</span>
+                <span className="block font-bold text-[11px] truncate">{isSr ? "Opet" : "Nochmal"}</span>
+                <span className="block text-[9px] text-red-600 font-semibold truncate">10 min</span>
               </button>
 
               <button
                 onClick={() => handleGrade(2)}
-                className="p-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 rounded-2xl text-center transition active:scale-95 shadow-2xs"
+                className="p-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 rounded-xl text-center transition active:scale-95 shadow-2xs"
               >
-                <span className="block font-bold text-xs">{isSr ? "Teško [2]" : "Schwer [2]"}</span>
-                <span className="block text-[10px] text-amber-700 mt-0.5 font-semibold">{isSr ? "sutra" : "morgen"}</span>
+                <span className="block font-bold text-[11px] truncate">{isSr ? "Teško" : "Schwer"}</span>
+                <span className="block text-[9px] text-amber-700 font-semibold truncate">{isSr ? "sutra" : "morgen"}</span>
               </button>
 
               <button
                 onClick={() => handleGrade(3)}
-                className="p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-900 rounded-2xl text-center transition active:scale-95 shadow-2xs"
+                className="p-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-900 rounded-xl text-center transition active:scale-95 shadow-2xs"
               >
-                <span className="block font-bold text-xs">{isSr ? "Znam [3]" : "Gewusst [3]"}</span>
-                <span className="block text-[10px] text-emerald-700 mt-0.5 font-semibold">{isSr ? "za 3 dana" : "in 3 Tagen"}</span>
+                <span className="block font-bold text-[11px] truncate">{isSr ? "Dobro" : "Gut"}</span>
+                <span className="block text-[9px] text-emerald-700 font-semibold truncate">3 dana</span>
               </button>
 
               <button
                 onClick={() => handleGrade(4)}
-                className="p-3 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-900 rounded-2xl text-center transition active:scale-95 shadow-2xs"
+                className="p-2 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-900 rounded-xl text-center transition active:scale-95 shadow-2xs"
               >
-                <span className="block font-bold text-xs">{isSr ? "Lako [4]" : "Leicht [4]"}</span>
-                <span className="block text-[10px] text-sky-700 mt-0.5 font-semibold">{isSr ? "za 7 dana" : "in 7 Tagen"}</span>
+                <span className="block font-bold text-[11px] truncate">{isSr ? "Lako" : "Leicht"}</span>
+                <span className="block text-[9px] text-sky-700 font-semibold truncate">7 dana</span>
               </button>
             </div>
           ) : (
@@ -3394,59 +3426,59 @@
       return (
         <div className="space-y-4">
           
-          <div className="flex items-center space-x-1 p-1 bg-stone-100 rounded-2xl border border-stone-200/80 text-xs font-bold overflow-x-auto no-scrollbar">
+          <div className="grid grid-cols-3 gap-1 p-1 bg-stone-100 rounded-2xl border border-stone-200/80 text-[11px] font-bold">
             <button
               onClick={() => setSubTab("lessons")}
-              className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition flex items-center space-x-1.5 ${subTab === 'lessons' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-600 hover:text-stone-900'}`}
+              className={`py-1.5 px-1 rounded-xl transition flex items-center justify-center space-x-1 text-center ${subTab === 'lessons' ? 'bg-white text-rose-950 shadow-2xs font-black' : 'text-stone-600 hover:text-stone-900'}`}
             >
               <span>🎓</span>
-              <span>{isSr ? `Lekcije (${LESSONS_DATA.length})` : `Lektionen (${LESSONS_DATA.length})`}</span>
+              <span className="truncate">{isSr ? `Lekcije (${LESSONS_DATA.length})` : `Lektionen (${LESSONS_DATA.length})`}</span>
             </button>
 
             <button
               onClick={() => setSubTab("sounds")}
-              className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition flex items-center space-x-1.5 ${subTab === 'sounds' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-600 hover:text-stone-900'}`}
+              className={`py-1.5 px-1 rounded-xl transition flex items-center justify-center space-x-1 text-center ${subTab === 'sounds' ? 'bg-white text-rose-950 shadow-2xs font-black' : 'text-stone-600 hover:text-stone-900'}`}
             >
               <span>✨</span>
-              <span>{isSr ? "Zvučni Vodič (Swiss)" : "Laut-Guide (Swiss)"}</span>
+              <span className="truncate">{isSr ? "Izgovor" : "Laute"}</span>
             </button>
 
             <button
               onClick={() => setSubTab("alphabet")}
-              className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition flex items-center space-x-1.5 ${subTab === 'alphabet' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-600 hover:text-stone-900'}`}
+              className={`py-1.5 px-1 rounded-xl transition flex items-center justify-center space-x-1 text-center ${subTab === 'alphabet' ? 'bg-white text-rose-950 shadow-2xs font-black' : 'text-stone-600 hover:text-stone-900'}`}
             >
               <span>🔤</span>
-              <span>{isSr ? "Azbuka & Pismo" : "Alphabet & Schrift"}</span>
+              <span className="truncate">{isSr ? "Azbuka" : "Alphabet"}</span>
             </button>
 
             <button
               onClick={() => setSubTab("translate")}
-              className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition flex items-center space-x-1.5 ${subTab === 'translate' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-600 hover:text-stone-900'}`}
+              className={`py-1.5 px-1 rounded-xl transition flex items-center justify-center space-x-1 text-center ${subTab === 'translate' ? 'bg-white text-rose-950 shadow-2xs font-black' : 'text-stone-600 hover:text-stone-900'}`}
             >
               <span>🌐</span>
-              <span>{isSr ? "Prevodilac" : "Übersetzer"}</span>
+              <span className="truncate">{isSr ? "Prevodilac" : "Übersetzer"}</span>
             </button>
 
             <button
               onClick={() => setSubTab("grammar")}
-              className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition flex items-center space-x-1.5 ${subTab === 'grammar' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-600 hover:text-stone-900'}`}
+              className={`py-1.5 px-1 rounded-xl transition flex items-center justify-center space-x-1 text-center ${subTab === 'grammar' ? 'bg-white text-rose-950 shadow-2xs font-black' : 'text-stone-600 hover:text-stone-900'}`}
             >
               <span>📖</span>
-              <span>{isSr ? "Gramatika" : "Grammatik"}</span>
+              <span className="truncate">{isSr ? "Gramatika" : "Grammatik"}</span>
             </button>
 
             <button
               onClick={() => setSubTab("words")}
-              className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition flex items-center space-x-1.5 ${subTab === 'words' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-600 hover:text-stone-900'}`}
+              className={`py-1.5 px-1 rounded-xl transition flex items-center justify-center space-x-1 text-center ${subTab === 'words' ? 'bg-white text-rose-950 shadow-2xs font-black' : 'text-stone-600 hover:text-stone-900'}`}
             >
               <span>📚</span>
-              <span>{isSr ? `Sve Reči (${vocabulary.length})` : `Alle Wörter (${vocabulary.length})`}</span>
+              <span className="truncate">{isSr ? `Reči (${vocabulary.length})` : `Wörter (${vocabulary.length})`}</span>
             </button>
           </div>
 
           {subTab === "lessons" && (
             <div className="space-y-4">
-              <div className="flex space-x-2 overflow-x-auto no-scrollbar py-1">
+              <div className="grid grid-cols-2 gap-1.5 py-1">
                 {LESSONS_DATA.map(l => (
                   <button
                     key={l.id}
@@ -3455,9 +3487,9 @@
                       setPlacedTiles([]);
                       setTileResult(null);
                     }}
-                    className={`px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition border ${activeLessonId === l.id ? 'bg-rose-900 text-white border-rose-900 shadow-xs' : 'bg-white text-stone-700 border-stone-200/80 hover:bg-rose-50'}`}
+                    className={`p-2 rounded-xl text-[11px] font-bold transition border text-left leading-tight truncate ${activeLessonId === l.id ? 'bg-rose-900 text-white border-rose-900 shadow-2xs font-black' : 'bg-white text-stone-700 border-stone-200/80 hover:bg-rose-50'}`}
                   >
-                    <span>{isSr ? l.titleSr : l.titleDe}</span>
+                    <span className="truncate block">{isSr ? l.titleSr : l.titleDe}</span>
                   </button>
                 ))}
               </div>
@@ -3610,7 +3642,7 @@
 
           {subTab === "sounds" && (
             <div className="space-y-4">
-              <div className="flex space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
+              <div className="flex flex-wrap gap-1.5 py-0.5">
                 {[
                   { key: "all", label: isSr ? "Svi Zvukovi" : "Alle Laute" },
                   { key: "swiss", label: "✨ Swiss Cheat Codes" },
@@ -3636,7 +3668,7 @@
                       <p className="text-xs text-stone-500 mt-0.5">{isSr ? section.desc : (section.descDe || section.desc)}</p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                       {section.items.map((item, iIdx) => (
                         <div key={iIdx} className="bg-stone-50/70 p-4 rounded-2xl border border-stone-200/70 space-y-2">
                           <div className="flex items-center justify-between">
@@ -3891,7 +3923,7 @@
                   </div>
                 </div>
 
-                <div className="flex space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
+                <div className="flex flex-wrap gap-1 py-0.5">
                   {categoriesList.map(cat => (
                     <button
                       key={cat}
@@ -3948,7 +3980,7 @@
                   )}
                 </div>
               ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 {filteredWords.map(w => {
                   const isFlipped = flippedWordCards[w.id];
                   const isLearned = isRadoica ? w.learnedRadoica : w.learnedMalak;
@@ -4203,20 +4235,20 @@
       return (
         <div className="space-y-4">
           
-          <div className="flex space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
+          <div className="grid grid-cols-2 gap-1.5 py-0.5 text-xs font-bold">
             {[
-              { id: "chat", icon: "💬", label: isSr ? "Dopisivanje sa Partnerom (Simulator)" : "Chat-Simulator" },
-              { id: "traps", icon: "⚡", label: isSr ? "Zvučne Zamke (Sound Traps)" : "Laut-Fallen (Sound Traps)" },
-              { id: "type", icon: "⌨️", label: isSr ? "Kucaj Reč (Type It)" : "Eintippen (Type It)" },
-              { id: "quiz", icon: "🎯", label: isSr ? "Brzi Kviz (Quiz)" : "Schnell-Quiz" }
+              { id: "chat", icon: "💬", label: isSr ? "Dopisivanje" : "Chat-Simulator" },
+              { id: "traps", icon: "⚡", label: isSr ? "Zvučne Zamke" : "Laut-Fallen" },
+              { id: "type", icon: "⌨️", label: isSr ? "Kucaj Reč" : "Eintippen" },
+              { id: "quiz", icon: "🎯", label: isSr ? "Brzi Kviz" : "Schnell-Quiz" }
             ].map(m => (
               <button
                 key={m.id}
                 onClick={() => setPracticeMode(m.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition border flex items-center space-x-1.5 ${practiceMode === m.id ? 'bg-rose-900 text-white border-rose-900 shadow-xs' : 'bg-white text-stone-700 border-stone-200/80 hover:bg-rose-50'}`}
+                className={`px-2.5 py-2 rounded-xl transition border flex items-center justify-center space-x-1.5 text-center ${practiceMode === m.id ? 'bg-rose-900 text-white border-rose-900 shadow-2xs font-black' : 'bg-white text-stone-700 border-stone-200/80 hover:bg-rose-50'}`}
               >
                 <span>{m.icon}</span>
-                <span>{m.label}</span>
+                <span className="truncate">{m.label}</span>
               </button>
             ))}
           </div>
@@ -4914,7 +4946,7 @@
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3.5">
               {POSTCARDS_DATA.map(postcard => {
                 const isFlipped = flippedPostcards[postcard.id];
                 const title = isSr ? postcard.title : (postcard.titleDe || postcard.title);
@@ -5172,7 +5204,7 @@
 
       return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4" onClick={onClose}>
-          <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 text-xs border border-rose-100 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-3xl w-[calc(100vw-1.5rem)] max-w-md p-4 sm:p-5 space-y-3.5 text-xs border border-rose-100 shadow-2xl animate-in fade-in zoom-in-95 max-h-[88dvh] overflow-y-auto overflow-x-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-rose-50 pb-3">
               <div>
                 <h3 className="font-extrabold text-stone-900 text-sm flex items-center space-x-1.5">
@@ -5547,22 +5579,22 @@
               </div>
             </div>
 
-            <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar py-0.5 text-xs font-bold">
+            <div className="grid grid-cols-3 gap-1.5 text-[11px] font-bold">
               {[
-                { id: "today", icon: "☀️", label: isSr ? "Danas (Bento)" : "Heute (Bento)" },
-                { id: "review", icon: "🎴", label: isSr ? "Ponavljanje (FSRS)" : "Wiederholen (FSRS)" },
-                { id: "learn", icon: "📖", label: isSr ? "Uči (6 Modula)" : "Lernen (6 Module)" },
-                { id: "practice", icon: "⚡", label: isSr ? "Vežba (4 Režima)" : "Üben (4 Modi)" },
-                { id: "progress", icon: "📊", label: isSr ? "Napredak & Bedževi" : "Fortschritt" },
-                { id: "note", icon: "💌", label: isSr ? "Pismo & Razglednice" : "Liebesbrief" }
+                { id: "today", icon: "☀️", label: isSr ? "Danas" : "Heute" },
+                { id: "review", icon: "🎴", label: isSr ? "Ponavljanje" : "Wiederholen" },
+                { id: "learn", icon: "📖", label: isSr ? "Uči" : "Lernen" },
+                { id: "practice", icon: "⚡", label: isSr ? "Vežba" : "Üben" },
+                { id: "progress", icon: "📊", label: isSr ? "Napredak" : "Fortschritt" },
+                { id: "note", icon: "💌", label: isSr ? "Pismo" : "Brief" }
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setHubTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition flex items-center space-x-1.5 ${hubTab === tab.id ? 'bg-rose-900 text-white shadow-2xs' : 'text-stone-600 hover:text-stone-900 hover:bg-rose-50'}`}
+                  className={`px-1.5 py-2 rounded-xl transition flex items-center justify-center space-x-1 text-center ${hubTab === tab.id ? 'bg-rose-900 text-white shadow-2xs font-black' : 'bg-stone-50 text-stone-600 hover:text-stone-900 border border-stone-200/60'}`}
                 >
-                  <span>{tab.icon}</span>
-                  <span>{tab.label}</span>
+                  <span className="text-sm leading-none">{tab.icon}</span>
+                  <span className="truncate">{tab.label}</span>
                 </button>
               ))}
             </div>
@@ -5726,21 +5758,21 @@
               </p>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 sm:gap-3 text-center">
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/10">
-                <span className="text-2xl sm:text-3xl font-extrabold tabular-nums tracking-tight block">{timeLeft.days}</span>
+            <div className="grid grid-cols-4 gap-1.5 text-center">
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2 border border-white/10">
+                <span className="text-xl sm:text-2xl font-extrabold tabular-nums tracking-tight block">{timeLeft.days}</span>
                 <span className="text-[9px] uppercase tracking-wider text-rose-200/80 font-bold block mt-0.5">{isSr ? "Dana" : "Tage"}</span>
               </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/10">
-                <span className="text-2xl sm:text-3xl font-extrabold tabular-nums tracking-tight block">{String(timeLeft.hours).padStart(2, '0')}</span>
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2 border border-white/10">
+                <span className="text-xl sm:text-2xl font-extrabold tabular-nums tracking-tight block">{String(timeLeft.hours).padStart(2, '0')}</span>
                 <span className="text-[9px] uppercase tracking-wider text-rose-200/80 font-bold block mt-0.5">{isSr ? "Sati" : "Std"}</span>
               </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/10">
-                <span className="text-2xl sm:text-3xl font-extrabold tabular-nums tracking-tight block">{String(timeLeft.minutes).padStart(2, '0')}</span>
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2 border border-white/10">
+                <span className="text-xl sm:text-2xl font-extrabold tabular-nums tracking-tight block">{String(timeLeft.minutes).padStart(2, '0')}</span>
                 <span className="text-[9px] uppercase tracking-wider text-rose-200/80 font-bold block mt-0.5">{isSr ? "Min" : "Min"}</span>
               </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/10">
-                <span className="text-2xl sm:text-3xl font-extrabold tabular-nums tracking-tight block text-rose-400">{String(timeLeft.seconds).padStart(2, '0')}</span>
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2 border border-white/10">
+                <span className="text-xl sm:text-2xl font-extrabold tabular-nums tracking-tight block text-rose-400">{String(timeLeft.seconds).padStart(2, '0')}</span>
                 <span className="text-[9px] uppercase tracking-wider text-rose-200/80 font-bold block mt-0.5">{isSr ? "Sek" : "Sek"}</span>
               </div>
             </div>
@@ -5792,7 +5824,7 @@
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-2.5">
             <div 
               onClick={() => onNavigate("learning")}
               className="bg-white p-4 rounded-3xl border border-rose-100 shadow-2xs hover:border-rose-200 transition cursor-pointer flex flex-col justify-between"
@@ -6138,7 +6170,7 @@
             </span>
           </div>
 
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {photos.map((src, i) => (
               <div 
                 key={src} 
@@ -6179,7 +6211,7 @@
 
       return (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-5 space-y-3 text-xs border border-rose-100 shadow-xl">
+          <div className="bg-white rounded-3xl w-[calc(100vw-1.5rem)] max-w-sm p-4 space-y-3 text-xs border border-rose-100 shadow-xl max-h-[88dvh] overflow-y-auto overflow-x-hidden">
             <h3 className="font-bold text-stone-900 text-sm">
               {isSr ? "Podesi sledeći susret" : "Nächstes Wiedersehen planen"}
             </h3>
@@ -6304,7 +6336,7 @@ end;
 
       return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4" onClick={onClose}>
-          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 text-xs border border-rose-100 shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-3xl w-[calc(100vw-1.5rem)] max-w-md p-4 sm:p-5 space-y-4 text-xs border border-rose-100 shadow-2xl animate-in fade-in zoom-in-95 max-h-[88dvh] overflow-y-auto overflow-x-hidden" onClick={e => e.stopPropagation()}>
             
             <div className="flex items-center justify-between border-b border-rose-50 pb-3">
               <div>
@@ -6925,87 +6957,78 @@ end;
       const missionDoneCount = (dailyMissions.review ? 1 : 0) + (dailyMissions.practice ? 1 : 0) + (dailyMissions.say ? 1 : 0);
 
       return (
-        <div className="min-h-screen flex flex-col justify-between max-w-4xl mx-auto px-4 sm:px-6 pb-20 pt-3">
+        <div className="w-full max-w-md mx-auto min-h-[100dvh] overflow-x-hidden relative flex flex-col bg-stone-50/60 text-stone-900 px-3 pt-[max(0.6rem,env(safe-area-inset-top))] pb-[max(5.2rem,calc(env(safe-area-inset-bottom)+4.5rem))]">
           
-          <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md rounded-2xl px-4 py-2.5 border border-rose-100 shadow-xs mb-4">
-            <div className="flex items-center justify-between">
+          {/* Mobile-First Sticky Header */}
+          <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md rounded-2xl px-3 py-2 border border-rose-100/90 shadow-2xs mb-3">
+            <div className="flex items-center justify-between gap-1">
               
-              <div className="flex items-center space-x-2.5 select-none">
+              <div className="flex items-center space-x-1.5 select-none shrink-0">
                 <div 
                   onClick={handleHeartClick}
-                  className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-wine-900 via-rose-900 to-romantic-600 text-white flex items-center justify-center font-bold text-xs shadow-xs cursor-pointer active:scale-90 transition"
+                  className="w-8 h-8 rounded-xl bg-gradient-to-tr from-wine-900 via-rose-900 to-romantic-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs cursor-pointer active:scale-90 transition shrink-0"
                   title={isSr ? "Klikni 5 puta za tajnu poruku! ❤️" : "5x tippen für geheime Nachricht! ❤️"}
                 >
-                  <span className="heart-pulse text-base">❤️</span>
+                  <span className="heart-pulse text-sm">❤️</span>
                 </div>
                 <div onClick={() => setActiveTab("home")} className="cursor-pointer">
-                  <div className="flex items-center space-x-1.5 leading-none">
-                    <span className="font-extrabold text-stone-900 text-sm tracking-tight">Zajedno</span>
-                    <span className="text-[11px] font-bold text-rose-500">/ Zusammen</span>
+                  <div className="flex items-center space-x-1 leading-tight">
+                    <span className="font-black text-stone-900 text-xs tracking-tight">Zajedno</span>
+                    <span className="text-[10px] font-bold text-rose-500">/ Zusammen</span>
                   </div>
-                  <span className="text-[10px] text-stone-400 font-medium">Radoica & Malak</span>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1 shrink-0 text-xs">
                 
                 <button
                   onClick={() => setIsMissionModalOpen(true)}
-                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center space-x-1 border ${missionDoneCount === 3 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100'}`}
+                  className={`px-1.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center space-x-0.5 border ${missionDoneCount === 3 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-900 border-rose-200 hover:bg-rose-100'}`}
                   title={isSr ? "Dnevne Misije" : "Tagesmissionen"}
                 >
                   <span>{missionDoneCount === 3 ? "✓" : "✦"}</span>
-                  <span className="tabular-nums">{missionDoneCount}/3 {isSr ? "danas" : "heute"}</span>
+                  <span className="tabular-nums font-mono">{missionDoneCount}/3</span>
                 </button>
 
-                <div className="flex items-center bg-rose-50/70 p-0.5 rounded-xl border border-rose-100 text-xs">
+                <div className="flex items-center bg-stone-100 p-0.5 rounded-lg border border-stone-200 text-[10px] font-bold">
                   <button 
                     onClick={() => setUiLang("sr")}
-                    className={`px-2 py-0.5 rounded-lg font-bold transition ${isSr ? 'bg-white text-rose-900 shadow-2xs' : 'text-stone-500 hover:text-stone-900'}`}
+                    className={`px-1.5 py-0.5 rounded transition ${isSr ? 'bg-white text-rose-900 shadow-2xs font-black' : 'text-stone-500'}`}
                   >
-                    SR 🇷🇸
+                    SR
                   </button>
                   <button 
                     onClick={() => setUiLang("de")}
-                    className={`px-2 py-0.5 rounded-lg font-bold transition ${!isSr ? 'bg-white text-rose-900 shadow-2xs' : 'text-stone-500 hover:text-stone-900'}`}
+                    className={`px-1.5 py-0.5 rounded transition ${!isSr ? 'bg-white text-rose-900 shadow-2xs font-black' : 'text-stone-500'}`}
                   >
-                    DE 🇩🇪
+                    DE
                   </button>
                 </div>
 
                 <button 
                   onClick={toggleUser}
-                  className="flex items-center space-x-1.5 bg-white hover:bg-rose-50 border border-rose-100 pl-1.5 pr-2.5 py-1 rounded-xl transition text-xs font-bold text-stone-800 shadow-2xs"
+                  className="flex items-center space-x-1 bg-white hover:bg-rose-50 border border-rose-100 pl-1 pr-1.5 py-0.5 rounded-lg transition text-[11px] font-bold text-stone-800 shadow-2xs"
                   title={isSr ? "Promeni aktivni profil" : "Aktives Profil wechseln"}
                 >
                   <img 
                     src={isRadoica ? "images/photo_03.jpg" : "images/photo_04.jpg"} 
-                    className="w-5 h-5 rounded-full object-cover ring-1 ring-rose-200"
+                    className="w-4 h-4 rounded-full object-cover ring-1 ring-rose-200"
                     alt={isRadoica ? "Radoica" : "Malak"}
                   />
-                  <span>{isRadoica ? "Radoica" : "Malak"}</span>
+                  <span>{isRadoica ? "Rade" : "Malak"}</span>
                 </button>
 
                 <button 
                   onClick={() => setIsSyncOpen(true)}
-                  className={`px-2.5 py-1.5 rounded-xl border transition flex items-center space-x-1.5 text-[11px] font-bold ${
+                  className={`p-1 px-1.5 rounded-lg border transition flex items-center space-x-1 text-[10px] font-bold ${
                     cloudSyncStatus === 'connected' 
-                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-2xs hover:bg-emerald-100/70' 
-                      : 'bg-stone-50 hover:bg-stone-100 border-stone-200 text-stone-500'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-2xs' 
+                      : 'bg-stone-50 border-stone-200 text-stone-400'
                   }`}
-                  title={isSr ? (cloudSyncStatus === 'connected' ? "Supabase Uživo aktivan" : "Sinhronizacija / Offline") : (cloudSyncStatus === 'connected' ? "Supabase Live aktiv" : "Synchronisation / Offline")}
+                  title={isSr ? (cloudSyncStatus === 'connected' ? "Supabase Uživo aktivan" : "Offline") : (cloudSyncStatus === 'connected' ? "Supabase Live aktiv" : "Offline")}
                 >
-                  {cloudSyncStatus === 'connected' ? (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                      <span className="text-emerald-700 font-bold">☁️ Live Sync</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-stone-400"></span>
-                      <span className="text-stone-500 font-medium">📴 Offline</span>
-                    </>
-                  )}
+                  <span className={`w-1.5 h-1.5 rounded-full ${cloudSyncStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'}`}></span>
+                  <span>☁️</span>
                 </button>
 
               </div>
@@ -7013,52 +7036,7 @@ end;
             </div>
           </header>
 
-          <nav className="flex items-center space-x-1 p-1 bg-stone-100/90 rounded-2xl border border-stone-200/80 text-xs font-bold overflow-x-auto no-scrollbar mb-5">
-            <button 
-              onClick={() => setActiveTab("home")}
-              className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1.5 whitespace-nowrap ${activeTab === 'home' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-600 hover:text-stone-900'}`}
-            >
-              <span>🏠</span>
-              <span>{isSr ? "Početna" : "Start"}</span>
-            </button>
-
-            <button 
-              onClick={() => setActiveTab("learning")}
-              className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1.5 whitespace-nowrap ${activeTab === 'learning' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-600 hover:text-stone-900'}`}
-            >
-              <span>✨</span>
-              <span>{isSr ? "Učenje & Gramatika" : "Lernen & Grammatik"}</span>
-              <span className="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.2 rounded-full font-bold">{vocabulary.length}</span>
-            </button>
-
-            <button 
-              onClick={() => setActiveTab("tasks")}
-              className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1.5 whitespace-nowrap ${activeTab === 'tasks' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-600 hover:text-stone-900'}`}
-            >
-              <span>✓</span>
-              <span>{isSr ? "Zadaci" : "To-Do"}</span>
-              <span className="text-[10px] bg-stone-200 text-stone-700 px-1.5 py-0.2 rounded-full font-bold">{tasks.length}</span>
-            </button>
-
-            <button 
-              onClick={() => setActiveTab("books")}
-              className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1.5 whitespace-nowrap ${activeTab === 'books' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-600 hover:text-stone-900'}`}
-            >
-              <span>📚</span>
-              <span>{isSr ? "Knjige" : "Bücher"}</span>
-            </button>
-
-            <button 
-              onClick={() => setActiveTab("memories")}
-              className={`flex-1 py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1.5 whitespace-nowrap ${activeTab === 'memories' ? 'bg-white text-stone-900 shadow-2xs' : 'text-stone-600 hover:text-stone-900'}`}
-            >
-              <span>📸</span>
-              <span>{isSr ? "Uspomene" : "Fotos"}</span>
-              <span className="text-[10px] bg-rose-50 text-rose-600 px-1.5 py-0.2 rounded-full font-bold">47</span>
-            </button>
-          </nav>
-
-          <main className="flex-grow space-y-5">
+          <main className="flex-grow space-y-4">
             
             {activeTab === "home" && (
               <DashboardView 
@@ -7220,6 +7198,56 @@ end;
               onManualCloudPush={handleManualCloudPush}
             />
           )}
+
+          {/* Native Mobile Bottom Navigation Bar */}
+          <nav className="fixed bottom-0 left-0 right-0 z-40 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-rose-100 shadow-lg px-1 pt-1.5 pb-[max(0.6rem,env(safe-area-inset-bottom))] grid grid-cols-5 text-[10px] font-bold">
+            <button 
+              onClick={() => setActiveTab("home")}
+              className={`py-1 px-0.5 rounded-xl transition flex flex-col items-center justify-center space-y-0.5 ${activeTab === 'home' ? 'text-rose-950 bg-rose-50/80 font-black' : 'text-stone-500 hover:text-stone-800'}`}
+            >
+              <span className="text-base leading-none">🏠</span>
+              <span className="truncate">{isSr ? "Početna" : "Start"}</span>
+            </button>
+
+            <button 
+              onClick={() => setActiveTab("learning")}
+              className={`py-1 px-0.5 rounded-xl transition flex flex-col items-center justify-center space-y-0.5 relative ${activeTab === 'learning' ? 'text-rose-950 bg-rose-50/80 font-black' : 'text-stone-500 hover:text-stone-800'}`}
+            >
+              <span className="text-base leading-none">✨</span>
+              <span className="truncate">{isSr ? "Učenje" : "Lernen"}</span>
+              {vocabulary.length > 0 && (
+                <span className="absolute top-0.5 right-1.5 text-[8px] bg-rose-600 text-white px-1 py-0.1 rounded-full font-bold leading-none">{vocabulary.length}</span>
+              )}
+            </button>
+
+            <button 
+              onClick={() => setActiveTab("tasks")}
+              className={`py-1 px-0.5 rounded-xl transition flex flex-col items-center justify-center space-y-0.5 relative ${activeTab === 'tasks' ? 'text-rose-950 bg-rose-50/80 font-black' : 'text-stone-500 hover:text-stone-800'}`}
+            >
+              <span className="text-base leading-none">✓</span>
+              <span className="truncate">{isSr ? "Zadaci" : "To-Do"}</span>
+              {tasks.length > 0 && (
+                <span className="absolute top-0.5 right-1.5 text-[8px] bg-stone-600 text-white px-1 py-0.1 rounded-full font-bold leading-none">{tasks.length}</span>
+              )}
+            </button>
+
+            <button 
+              onClick={() => setActiveTab("books")}
+              className={`py-1 px-0.5 rounded-xl transition flex flex-col items-center justify-center space-y-0.5 ${activeTab === 'books' ? 'text-rose-950 bg-rose-50/80 font-black' : 'text-stone-500 hover:text-stone-800'}`}
+            >
+              <span className="text-base leading-none">📚</span>
+              <span className="truncate">{isSr ? "Knjige" : "Bücher"}</span>
+            </button>
+
+            <button 
+              onClick={() => setActiveTab("memories")}
+              className={`py-1 px-0.5 rounded-xl transition flex flex-col items-center justify-center space-y-0.5 relative ${activeTab === 'memories' ? 'text-rose-950 bg-rose-50/80 font-black' : 'text-stone-500 hover:text-stone-800'}`}
+            >
+              <span className="text-base leading-none">📸</span>
+              <span className="truncate">{isSr ? "Uspomene" : "Fotos"}</span>
+              <span className="absolute top-0.5 right-1.5 text-[8px] bg-rose-100 text-rose-800 px-1 py-0.1 rounded-full font-bold leading-none">47</span>
+            </button>
+          </nav>
 
         </div>
       );
